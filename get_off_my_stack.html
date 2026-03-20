@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GET OFF MY STACK!</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+- { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+background: #0a0a0a;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+min-height: 100vh;
+min-height: 100dvh;
+font-family: ‘Press Start 2P’, monospace;
+overflow: hidden;
+touch-action: none;
+-webkit-user-select: none;
+user-select: none;
+}
+
+#game-wrapper {
+position: relative;
+width: 100vw;
+max-width: 800px;
+aspect-ratio: 4 / 3;
+max-height: 70dvh;
+}
+
+canvas {
+display: block;
+width: 100%;
+height: 100%;
+border: 2px solid #00ff41;
+box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+image-rendering: pixelated;
+background: #0d1117;
+}
+
+#ui-overlay {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+z-index: 10;
+}
+
+#score-display {
+position: absolute;
+top: 10px;
+left: 15px;
+color: #00ff41;
+font-size: 10px;
+font-family: ‘Press Start 2P’, monospace;
+text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+}
+
+#health-display {
+position: absolute;
+top: 10px;
+right: 15px;
+color: #ff4136;
+font-size: 10px;
+font-family: ‘Press Start 2P’, monospace;
+text-shadow: 0 0 8px rgba(255, 65, 54, 0.6);
+}
+
+#wave-display {
+position: absolute;
+top: 30px;
+left: 15px;
+color: #ffdc00;
+font-size: 8px;
+font-family: ‘Press Start 2P’, monospace;
+text-shadow: 0 0 8px rgba(255, 220, 0, 0.6);
+}
+
+#powerup-display {
+position: absolute;
+bottom: 10px;
+left: 15px;
+color: #01ff70;
+font-size: 7px;
+font-family: ‘Press Start 2P’, monospace;
+}
+
+#start-screen, #game-over-screen {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+background: rgba(13, 17, 23, 0.95);
+z-index: 20;
+pointer-events: all;
+padding: 20px;
+}
+
+#game-over-screen { display: none; }
+
+.title {
+color: #00ff41;
+font-size: min(28px, 6vw);
+font-family: ‘Press Start 2P’, monospace;
+text-shadow: 0 0 20px rgba(0, 255, 65, 0.8), 0 0 40px rgba(0, 255, 65, 0.4);
+margin-bottom: 10px;
+animation: flicker 3s infinite;
+}
+
+.subtitle {
+color: #ffdc00;
+font-size: min(10px, 2.5vw);
+font-family: ‘Press Start 2P’, monospace;
+margin-bottom: 30px;
+text-shadow: 0 0 10px rgba(255, 220, 0, 0.5);
+}
+
+.instructions {
+color: #7fdbff;
+font-size: min(8px, 2vw);
+font-family: ‘VT323’, monospace;
+line-height: 2.2;
+text-align: center;
+margin-bottom: 20px;
+}
+
+.start-btn {
+background: none;
+border: 2px solid #00ff41;
+color: #00ff41;
+font-family: ‘Press Start 2P’, monospace;
+font-size: 12px;
+padding: 15px 30px;
+cursor: pointer;
+pointer-events: all;
+transition: all 0.2s;
+text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+}
+
+.start-btn:hover {
+background: #00ff41;
+color: #0d1117;
+box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+}
+
+.game-over-title {
+color: #ff4136;
+font-size: 24px;
+font-family: ‘Press Start 2P’, monospace;
+text-shadow: 0 0 20px rgba(255, 65, 54, 0.8);
+margin-bottom: 20px;
+}
+
+.final-score {
+color: #ffdc00;
+font-size: 14px;
+font-family: ‘Press Start 2P’, monospace;
+margin-bottom: 10px;
+}
+
+.kill-log {
+color: #7fdbff;
+font-size: 8px;
+font-family: ‘VT323’, monospace;
+margin-bottom: 30px;
+line-height: 1.8;
+text-align: center;
+}
+
+@keyframes flicker {
+0%, 95%, 100% { opacity: 1; }
+96% { opacity: 0.8; }
+97% { opacity: 1; }
+98% { opacity: 0.7; }
+}
+
+.scanlines {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: repeating-linear-gradient(
+0deg,
+transparent,
+transparent 2px,
+rgba(0, 0, 0, 0.08) 2px,
+rgba(0, 0, 0, 0.08) 4px
+);
+pointer-events: none;
+z-index: 15;
+}
+
+/* Touch Controls */
+#touch-controls {
+display: none;
+width: 100vw;
+max-width: 800px;
+height: 25dvh;
+position: relative;
+margin-top: 5px;
+}
+
+#joystick-zone {
+position: absolute;
+left: 20px;
+top: 50%;
+transform: translateY(-50%);
+width: 120px;
+height: 120px;
+border-radius: 50%;
+border: 2px solid rgba(0, 255, 65, 0.3);
+background: rgba(0, 255, 65, 0.05);
+touch-action: none;
+}
+
+#joystick-knob {
+position: absolute;
+width: 50px;
+height: 50px;
+border-radius: 50%;
+background: rgba(0, 255, 65, 0.4);
+border: 2px solid #00ff41;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+pointer-events: none;
+box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+}
+
+#smack-btn {
+position: absolute;
+right: 20px;
+top: 50%;
+transform: translateY(-50%);
+width: 110px;
+height: 110px;
+border-radius: 50%;
+border: 3px solid #ff4136;
+background: rgba(255, 65, 54, 0.15);
+color: #ff4136;
+font-family: ‘Press Start 2P’, monospace;
+font-size: 11px;
+display: flex;
+align-items: center;
+justify-content: center;
+touch-action: none;
+box-shadow: 0 0 15px rgba(255, 65, 54, 0.3);
+text-shadow: 0 0 8px rgba(255, 65, 54, 0.6);
+}
+
+#smack-btn:active {
+background: rgba(255, 65, 54, 0.4);
+box-shadow: 0 0 25px rgba(255, 65, 54, 0.6);
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+#touch-controls { display: block; }
+#game-wrapper { max-height: 55dvh; }
+}
+</style>
+
+</head>
+<body>
+
+<div id="game-wrapper">
+  <canvas id="game" width="800" height="600"></canvas>
+  <div class="scanlines"></div>
+
+  <div id="ui-overlay">
+    <div id="score-display">SCORE: 0</div>
+    <div id="health-display">SANITY: ♥♥♥♥♥</div>
+    <div id="wave-display">WAVE 1: JUNIOR DEVS</div>
+    <div id="powerup-display"></div>
+  </div>
+
+  <div id="start-screen">
+    <div class="title">GET OFF MY</div>
+    <div class="title" style="color: #ffdc00; margin-bottom: 20px;">STACK!</div>
+    <div class="subtitle">~ a game about code quality ~</div>
+    <div class="instructions">
+      ARROW KEYS / WASD to move<br>
+      SPACE to swing cane<br>
+      (or use touch controls on mobile)<br>
+      SMACK bad code before it reaches production<br>
+      Collect power-ups to boost your rage<br>
+      <br>
+      <span style="color: #ff4136;">WARNING: Contains excessive JavaScript</span>
+    </div>
+    <button class="start-btn" onclick="startGame()">INSERT COIN</button>
+  </div>
+
+  <div id="game-over-screen">
+    <div class="game-over-title">STACK OVERFLOW</div>
+    <div class="final-score" id="final-score">SCORE: 0</div>
+    <div class="kill-log" id="kill-log"></div>
+    <button class="start-btn" onclick="startGame()">RECOMPILE</button>
+  </div>
+</div>
+
+<div id="touch-controls">
+  <div id="joystick-zone">
+    <div id="joystick-knob"></div>
+  </div>
+  <div id="smack-btn">SMACK!</div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Game state
+let gameRunning = false;
+let score = 0;
+let health = 5;
+let wave = 1;
+let waveTimer = 0;
+let spawnTimer = 0;
+let enemies = [];
+let particles = [];
+let powerups = [];
+let floatingTexts = [];
+let killLog = {};
+let screenShake = 0;
+let caneSwinging = false;
+let caneAngle = 0;
+let caneTimer = 0;
+let activePowerup = null;
+let powerupTimer = 0;
+let comboCount = 0;
+let comboTimer = 0;
+
+// Player
+const player = {
+  x: 400, y: 500,
+  w: 28, h: 36,
+  speed: 4,
+  facing: 1, // 1 right, -1 left
+  walkFrame: 0,
+  walkTimer: 0
+};
+
+// Input
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === ' ') { e.preventDefault(); swingCane(); }
+  if (['arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// Touch controls
+let touchMove = { x: 0, y: 0 };
+let joystickActive = false;
+
+const joystickZone = document.getElementById('joystick-zone');
+const joystickKnob = document.getElementById('joystick-knob');
+const smackBtn = document.getElementById('smack-btn');
+
+if (joystickZone) {
+  const getJoystickInput = (touch) => {
+    const rect = joystickZone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const maxDist = rect.width / 2 - 10;
+    
+    let dx = touch.clientX - cx;
+    let dy = touch.clientY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > maxDist) {
+      dx = (dx / dist) * maxDist;
+      dy = (dy / dist) * maxDist;
+    }
+    
+    joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    touchMove.x = dx / maxDist;
+    touchMove.y = dy / maxDist;
+  };
+  
+  joystickZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    joystickActive = true;
+    getJoystickInput(e.touches[0]);
+  }, { passive: false });
+  
+  joystickZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (joystickActive) getJoystickInput(e.touches[0]);
+  }, { passive: false });
+  
+  const resetJoystick = () => {
+    joystickActive = false;
+    touchMove.x = 0;
+    touchMove.y = 0;
+    joystickKnob.style.transform = 'translate(-50%, -50%)';
+  };
+  
+  joystickZone.addEventListener('touchend', (e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
+  joystickZone.addEventListener('touchcancel', (e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
+}
+
+if (smackBtn) {
+  smackBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    swingCane();
+  }, { passive: false });
+}
+
+// Enemy types
+const ENEMY_TYPES = {
+  jsBlob: {
+    name: 'Bloated JS Bundle',
+    color: '#f7df1e',
+    accentColor: '#000',
+    w: 30, h: 30,
+    hp: 1, speed: 1.2,
+    points: 100,
+    deathMsg: 'MINIFIED!',
+    shape: 'blob'
+  },
+  ifElse: {
+    name: 'If/Else Centipede',
+    color: '#ff6b6b',
+    accentColor: '#c92a2a',
+    w: 50, h: 14,
+    hp: 2, speed: 1.5,
+    points: 200,
+    deathMsg: 'REFACTORED!',
+    shape: 'centipede'
+  },
+  nodeModules: {
+    name: 'node_modules',
+    color: '#68d391',
+    accentColor: '#276749',
+    w: 35, h: 35,
+    hp: 3, speed: 0.6,
+    points: 300,
+    deathMsg: 'npm prune!',
+    shape: 'growing'
+  },
+  memLeak: {
+    name: 'Memory Leak',
+    color: '#b794f4',
+    accentColor: '#6b46c1',
+    w: 20, h: 20,
+    hp: 1, speed: 2.0,
+    points: 150,
+    deathMsg: 'free()!',
+    shape: 'drip'
+  },
+  texture4k: {
+    name: 'Uncompressed 4K Texture',
+    color: '#fc8181',
+    accentColor: '#9b2c2c',
+    w: 45, h: 45,
+    hp: 4, speed: 0.4,
+    points: 400,
+    deathMsg: 'COMPRESSED!',
+    shape: 'block'
+  },
+  dansFix: {
+    name: "Dan's Fix",
+    color: '#ffa94d',
+    accentColor: '#d9480f',
+    w: 18, h: 18,
+    hp: 1, speed: 3.0,
+    points: 250,
+    deathMsg: 'CODE REVIEWED!',
+    shape: 'gremlin'
+  },
+  spaghetti: {
+    name: 'Spaghetti Code',
+    color: '#ffd43b',
+    accentColor: '#e67700',
+    w: 24, h: 24,
+    hp: 2, speed: 1.8,
+    points: 200,
+    deathMsg: 'UNTANGLED!',
+    shape: 'noodle'
+  },
+  sapIfElse: {
+    name: 'SAP 1000-line IF/ELSE',
+    color: '#ff0000',
+    accentColor: '#8b0000',
+    w: 60, h: 50,
+    hp: 8, speed: 0.3,
+    points: 1000,
+    deathMsg: 'SWITCH CASE\'D!',
+    shape: 'boss'
+  }
+};
+
+const POWERUP_TYPES = {
+  assemblyManual: { name: 'ASM MANUAL', color: '#ff4136', duration: 300, effect: 'rage', icon: 'A', desc: 'x86 RAGE MODE!' },
+  linter: { name: 'LINTER', color: '#01ff70', duration: 200, effect: 'freeze', icon: 'L', desc: 'LINT ALL THE THINGS!' },
+  codeReview: { name: 'CODE REVIEW', color: '#ffdc00', duration: 1, effect: 'nuke', icon: 'CR', desc: 'INSTANT REJECTION!' },
+  gcc: { name: 'gcc -O3', color: '#7fdbff', duration: 250, effect: 'shrink', icon: 'O3', desc: 'OPTIMIZE THIS!' }
+};
+
+const WAVES = [
+  { name: 'JUNIOR DEVS', types: ['jsBlob', 'dansFix'], spawnRate: 90, duration: 600 },
+  { name: 'FRAMEWORK HELL', types: ['jsBlob', 'nodeModules', 'spaghetti'], spawnRate: 70, duration: 700 },
+  { name: 'LEGACY CODE', types: ['ifElse', 'memLeak', 'spaghetti', 'dansFix'], spawnRate: 60, duration: 800 },
+  { name: 'AAA BLOATWARE', types: ['texture4k', 'nodeModules', 'jsBlob', 'memLeak'], spawnRate: 50, duration: 800 },
+  { name: 'SAP NIGHTMARE', types: ['ifElse', 'sapIfElse', 'dansFix', 'spaghetti', 'memLeak'], spawnRate: 45, duration: 900 },
+  { name: 'PRODUCTION DEPLOY', types: ['jsBlob', 'ifElse', 'nodeModules', 'memLeak', 'texture4k', 'dansFix', 'spaghetti'], spawnRate: 35, duration: 1000 }
+];
+
+function drawPixelChar(x, y, facing) {
+  ctx.save();
+  ctx.translate(x, y);
+  
+  // Body - grumpy old programmer
+  // Hair (gray, wild)
+  ctx.fillStyle = '#c0c0c0';
+  ctx.fillRect(-10 * facing, -18, 20, 6);
+  ctx.fillRect(-12 * facing, -16, 4, 4);
+  ctx.fillRect(8 * facing, -16, 4, 4);
+  
+  // Head
+  ctx.fillStyle = '#ffd5b4';
+  ctx.fillRect(-8, -14, 16, 14);
+  
+  // Glasses
+  ctx.fillStyle = '#333';
+  ctx.fillRect(-7, -10, 6, 5);
+  ctx.fillRect(1, -10, 6, 5);
+  ctx.fillRect(-1, -9, 2, 3);
+  ctx.fillStyle = '#aaddff';
+  ctx.fillRect(-6, -9, 4, 3);
+  ctx.fillRect(2, -9, 4, 3);
+  
+  // Grumpy mouth
+  ctx.fillStyle = '#8b4513';
+  ctx.fillRect(-4, -3, 8, 2);
+  
+  // Body (flannel/plaid shirt)
+  ctx.fillStyle = '#c0392b';
+  ctx.fillRect(-10, 0, 20, 16);
+  ctx.fillStyle = '#e74c3c';
+  ctx.fillRect(-8, 2, 4, 4);
+  ctx.fillRect(0, 2, 4, 4);
+  ctx.fillRect(-4, 8, 4, 4);
+  ctx.fillRect(4, 8, 4, 4);
+  
+  // Legs
+  ctx.fillStyle = '#2c3e50';
+  ctx.fillRect(-8, 16, 7, 10);
+  ctx.fillRect(1, 16, 7, 10);
+  
+  // Shoes
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-9, 24, 8, 4);
+  ctx.fillRect(1, 24, 8, 4);
+  
+  // Cane
+  if (caneSwinging) {
+    ctx.save();
+    ctx.translate(6 * facing, 4);
+    ctx.rotate(caneAngle * facing);
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(0, -2, 30, 3);
+    ctx.fillStyle = '#D2691E';
+    ctx.fillRect(26, -6, 6, 10);
+    // Cane hit sparkle
+    if (caneAngle > -0.5 && caneAngle < 0.5) {
+      ctx.fillStyle = '#ffdc00';
+      ctx.fillRect(30, -4, 4, 2);
+      ctx.fillRect(32, -2, 2, 4);
+    }
+    ctx.restore();
+  } else {
+    // Cane at rest
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(8 * facing, 2, 3, 26);
+    ctx.fillStyle = '#D2691E';
+    ctx.fillRect(6 * facing, 0, 7, 4);
+  }
+  
+  ctx.restore();
+}
+
+function drawEnemy(enemy) {
+  const type = ENEMY_TYPES[enemy.type];
+  const wobble = Math.sin(enemy.timer * 0.1) * 2;
+  
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y + wobble);
+  
+  if (enemy.hit > 0) {
+    ctx.globalAlpha = 0.5 + Math.sin(enemy.hit * 2) * 0.5;
+  }
+  
+  if (activePowerup === 'shrink') {
+    ctx.scale(0.6, 0.6);
+  }
+  
+  const w = type.w;
+  const h = type.h;
+  
+  switch(type.shape) {
+    case 'blob':
+      ctx.fillStyle = type.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, w/2 + Math.sin(enemy.timer * 0.15) * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = type.accentColor;
+      ctx.font = '10px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText('JS', 0, 4);
+      break;
+      
+    case 'centipede':
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i % 2 === 0 ? type.color : type.accentColor;
+        ctx.fillRect(-w/2 + i * 13, -h/2, 12, h);
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font = '6px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText('IF', -w/2 + 6, 3);
+      ctx.fillText('ELSE', -w/2 + 22, 3);
+      ctx.fillText('IF', -w/2 + 38, 3);
+      break;
+      
+    case 'growing':
+      const growSize = w + Math.sin(enemy.timer * 0.05) * 8;
+      ctx.fillStyle = type.color;
+      ctx.fillRect(-growSize/2, -growSize/2, growSize, growSize);
+      ctx.fillStyle = type.accentColor;
+      ctx.font = '6px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText('node', 0, -2);
+      ctx.fillText('modules', 0, 8);
+      // Size indicator
+      const sizeLabel = Math.floor(growSize * 10) + 'MB';
+      ctx.fillStyle = '#fff';
+      ctx.font = '5px "Press Start 2P"';
+      ctx.fillText(sizeLabel, 0, -growSize/2 - 4);
+      break;
+      
+    case 'drip':
+      ctx.fillStyle = type.color;
+      ctx.globalAlpha *= (0.5 + Math.sin(enemy.timer * 0.1) * 0.3);
+      ctx.beginPath();
+      ctx.moveTo(0, -h/2);
+      ctx.bezierCurveTo(w/2, -h/2, w/2, h/2, 0, h/2 + 5);
+      ctx.bezierCurveTo(-w/2, h/2, -w/2, -h/2, 0, -h/2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.font = '6px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText('leak', 0, 4);
+      break;
+      
+    case 'block':
+      ctx.fillStyle = type.color;
+      ctx.fillRect(-w/2, -h/2, w, h);
+      // Pixelated pattern to look like uncompressed texture
+      for (let px = 0; px < w; px += 6) {
+        for (let py = 0; py < h; py += 6) {
+          ctx.fillStyle = `hsl(${(px * py + enemy.timer) % 360}, 60%, 60%)`;
+          ctx.fillRect(-w/2 + px, -h/2 + py, 5, 5);
+        }
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font = '6px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText('4K', 0, -4);
+      ctx.fillText('.RAW', 0, 6);
+      break;
+      
+    case 'gremlin':
+      ctx.fillStyle = type.color;
+      ctx.fillRect(-w/2, -w/2, w, w);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-5, -5, 3, 3);
+      ctx.fillRect(2, -5, 3, 3);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(-4, -4, 2, 2);
+      ctx.fillRect(3, -4, 2, 2);
+      // Delete brackets animation
+      ctx.fillStyle = type.accentColor;
+      ctx.font = '8px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText('[]', 0 + Math.sin(enemy.timer * 0.2) * 5, -w/2 - 3);
+      break;
+      
+    case 'noodle':
+      ctx.strokeStyle = type.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const nx = Math.sin(i * 0.8 + enemy.timer * 0.1) * 12;
+        const ny = -12 + i * 3;
+        if (i === 0) ctx.moveTo(nx, ny);
+        else ctx.lineTo(nx, ny);
+      }
+      ctx.stroke();
+      ctx.fillStyle = type.accentColor;
+      ctx.font = '5px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText('goto', 0, 16);
+      break;
+      
+    case 'boss':
+      // SAP Boss - big scary if/else tower
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(-w/2, -h/2, w, h);
+      ctx.strokeStyle = type.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-w/2, -h/2, w, h);
+      // Scrolling if/else text
+      ctx.fillStyle = type.color;
+      ctx.font = '5px "Press Start 2P"';
+      ctx.textAlign = 'left';
+      const lines = ['IF x=1', ' THEN a', 'ELSEIF', ' x=2', ' THEN b', 'ELSEIF', ' x=3', 'ELSE ??'];
+      const scroll = Math.floor(enemy.timer * 0.15) % lines.length;
+      for (let i = 0; i < 5; i++) {
+        const li = (scroll + i) % lines.length;
+        ctx.fillText(lines[li], -w/2 + 4, -h/2 + 10 + i * 9);
+      }
+      // HP bar
+      ctx.fillStyle = '#333';
+      ctx.fillRect(-w/2, -h/2 - 8, w, 5);
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(-w/2, -h/2 - 8, w * (enemy.hp / ENEMY_TYPES[enemy.type].hp), 5);
+      break;
+  }
+  
+  ctx.restore();
+}
+
+function drawPowerup(p) {
+  const type = POWERUP_TYPES[p.type];
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  
+  // Glowing box
+  const pulse = Math.sin(p.timer * 0.1) * 4;
+  ctx.shadowColor = type.color;
+  ctx.shadowBlur = 10 + pulse;
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(-14, -14, 28, 28);
+  ctx.strokeStyle = type.color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-14, -14, 28, 28);
+  ctx.shadowBlur = 0;
+  
+  ctx.fillStyle = type.color;
+  ctx.font = '8px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText(type.icon, 0, 4);
+  
+  ctx.restore();
+}
+
+function spawnEnemy() {
+  const waveData = WAVES[Math.min(wave - 1, WAVES.length - 1)];
+  const typeKey = waveData.types[Math.floor(Math.random() * waveData.types.length)];
+  const type = ENEMY_TYPES[typeKey];
+  
+  // Spawn from edges
+  const side = Math.floor(Math.random() * 3); // 0=top, 1=left, 2=right
+  let x, y;
+  if (side === 0) { x = Math.random() * 700 + 50; y = -20; }
+  else if (side === 1) { x = -20; y = Math.random() * 400 + 50; }
+  else { x = 820; y = Math.random() * 400 + 50; }
+  
+  enemies.push({
+    type: typeKey,
+    x, y,
+    hp: type.hp,
+    timer: 0,
+    hit: 0,
+    targetX: player.x + (Math.random() - 0.5) * 200,
+    targetY: player.y + (Math.random() - 0.5) * 100
+  });
+}
+
+function spawnPowerup() {
+  const types = Object.keys(POWERUP_TYPES);
+  const typeKey = types[Math.floor(Math.random() * types.length)];
+  powerups.push({
+    type: typeKey,
+    x: Math.random() * 600 + 100,
+    y: Math.random() * 300 + 100,
+    timer: 0
+  });
+}
+
+function swingCane() {
+  if (!caneSwinging && gameRunning) {
+    caneSwinging = true;
+    caneAngle = -1.5;
+    caneTimer = 0;
+  }
+}
+
+function checkCaneHit() {
+  if (!caneSwinging) return;
+  
+  const caneReach = 40;
+  const caneX = player.x + player.facing * caneReach;
+  const caneY = player.y;
+  const hitRadius = activePowerup === 'rage' ? 50 : 30;
+  
+  enemies.forEach(enemy => {
+    const dx = enemy.x - caneX;
+    const dy = enemy.y - caneY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist < hitRadius && enemy.hit <= 0) {
+      const damage = activePowerup === 'rage' ? 3 : 1;
+      enemy.hp -= damage;
+      enemy.hit = 15;
+      screenShake = 5;
+      
+      // Knockback
+      const angle = Math.atan2(dy, dx);
+      enemy.x += Math.cos(angle) * 20;
+      enemy.y += Math.sin(angle) * 20;
+      
+      // Hit particles
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x: enemy.x, y: enemy.y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          life: 20,
+          color: ENEMY_TYPES[enemy.type].color
+        });
+      }
+      
+      if (enemy.hp <= 0) {
+        const type = ENEMY_TYPES[enemy.type];
+        score += type.points * (activePowerup === 'rage' ? 2 : 1);
+        comboCount++;
+        comboTimer = 60;
+        
+        if (comboCount > 2) {
+          floatingTexts.push({
+            x: enemy.x, y: enemy.y - 20,
+            text: comboCount + 'x COMBO!',
+            life: 40,
+            color: '#ffdc00'
+          });
+        }
+        
+        floatingTexts.push({
+          x: enemy.x, y: enemy.y,
+          text: type.deathMsg,
+          life: 30,
+          color: type.color
+        });
+        
+        // Death explosion
+        for (let i = 0; i < 15; i++) {
+          particles.push({
+            x: enemy.x, y: enemy.y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 30,
+            color: type.color
+          });
+        }
+        
+        killLog[enemy.type] = (killLog[enemy.type] || 0) + 1;
+      }
+    }
+  });
+}
+
+function update() {
+  if (!gameRunning) return;
+  
+  // Player movement
+  let dx = 0, dy = 0;
+  if (keys['arrowleft'] || keys['a']) { dx = -1; player.facing = -1; }
+  if (keys['arrowright'] || keys['d']) { dx = 1; player.facing = 1; }
+  if (keys['arrowup'] || keys['w']) dy = -1;
+  if (keys['arrowdown'] || keys['s']) dy = 1;
+  
+  // Touch joystick input
+  if (joystickActive) {
+    dx += touchMove.x;
+    dy += touchMove.y;
+    if (touchMove.x < -0.2) player.facing = -1;
+    if (touchMove.x > 0.2) player.facing = 1;
+  }
+  
+  const spd = activePowerup === 'rage' ? player.speed * 1.5 : player.speed;
+  if (dx || dy) {
+    const len = Math.sqrt(dx*dx + dy*dy);
+    player.x += (dx/len) * spd;
+    player.y += (dy/len) * spd;
+    player.walkTimer++;
+    if (player.walkTimer > 8) { player.walkFrame = (player.walkFrame + 1) % 4; player.walkTimer = 0; }
+  }
+  player.x = Math.max(20, Math.min(780, player.x));
+  player.y = Math.max(50, Math.min(580, player.y));
+  
+  // Cane animation
+  if (caneSwinging) {
+    caneTimer++;
+    caneAngle += 0.25;
+    if (caneTimer === 6) checkCaneHit();
+    if (caneTimer > 12) { caneSwinging = false; caneAngle = 0; }
+  }
+  
+  // Combo timer
+  if (comboTimer > 0) comboTimer--;
+  else comboCount = 0;
+  
+  // Enemy update
+  enemies.forEach(enemy => {
+    enemy.timer++;
+    if (enemy.hit > 0) enemy.hit--;
+    
+    const type = ENEMY_TYPES[enemy.type];
+    let spd = type.speed;
+    if (activePowerup === 'freeze') spd *= 0.1;
+    if (activePowerup === 'shrink') spd *= 0.7;
+    
+    // Move toward player
+    const edx = player.x - enemy.x;
+    const edy = player.y - enemy.y;
+    const elen = Math.sqrt(edx*edx + edy*edy);
+    if (elen > 0) {
+      enemy.x += (edx/elen) * spd;
+      enemy.y += (edy/elen) * spd;
+    }
+    
+    // Hit player
+    if (elen < 25 && enemy.hit <= 0) {
+      health--;
+      enemy.hp = 0;
+      screenShake = 10;
+      floatingTexts.push({
+        x: player.x, y: player.y - 30,
+        text: 'BUGS IN PROD!',
+        life: 40,
+        color: '#ff4136'
+      });
+      
+      if (health <= 0) {
+        gameOver();
+      }
+    }
+  });
+  
+  // Remove dead enemies
+  enemies = enemies.filter(e => e.hp > 0);
+  
+  // Powerup collision
+  powerups = powerups.filter(p => {
+    p.timer++;
+    const dx = player.x - p.x;
+    const dy = player.y - p.y;
+    if (Math.sqrt(dx*dx + dy*dy) < 30) {
+      const type = POWERUP_TYPES[p.type];
+      activePowerup = type.effect;
+      powerupTimer = type.duration;
+      
+      if (type.effect === 'nuke') {
+        // Kill all enemies on screen
+        enemies.forEach(e => {
+          score += ENEMY_TYPES[e.type].points;
+          killLog[e.type] = (killLog[e.type] || 0) + 1;
+          for (let i = 0; i < 10; i++) {
+            particles.push({
+              x: e.x, y: e.y,
+              vx: (Math.random() - 0.5) * 8,
+              vy: (Math.random() - 0.5) * 8,
+              life: 25,
+              color: '#ffdc00'
+            });
+          }
+        });
+        enemies = [];
+        screenShake = 15;
+        floatingTexts.push({
+          x: 400, y: 300,
+          text: 'REJECTED AT CODE REVIEW!',
+          life: 50,
+          color: '#ffdc00'
+        });
+      } else {
+        floatingTexts.push({
+          x: p.x, y: p.y,
+          text: type.desc,
+          life: 40,
+          color: type.color
+        });
+      }
+      return false;
+    }
+    return p.timer < 500;
+  });
+  
+  // Powerup timer
+  if (powerupTimer > 0) {
+    powerupTimer--;
+    if (powerupTimer <= 0) activePowerup = null;
+  }
+  
+  // Particles
+  particles = particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.95;
+    p.vy *= 0.95;
+    p.life--;
+    return p.life > 0;
+  });
+  
+  // Floating texts
+  floatingTexts = floatingTexts.filter(t => {
+    t.y -= 1;
+    t.life--;
+    return t.life > 0;
+  });
+  
+  // Spawn enemies
+  const waveData = WAVES[Math.min(wave - 1, WAVES.length - 1)];
+  spawnTimer++;
+  if (spawnTimer >= waveData.spawnRate) {
+    spawnEnemy();
+    spawnTimer = 0;
+  }
+  
+  // Spawn powerups
+  if (Math.random() < 0.003) spawnPowerup();
+  
+  // Wave progression
+  waveTimer++;
+  if (waveTimer >= waveData.duration) {
+    wave++;
+    waveTimer = 0;
+    floatingTexts.push({
+      x: 400, y: 200,
+      text: 'WAVE ' + wave + ': ' + WAVES[Math.min(wave - 1, WAVES.length - 1)].name,
+      life: 80,
+      color: '#00ff41'
+    });
+  }
+  
+  // Screen shake decay
+  if (screenShake > 0) screenShake *= 0.85;
+  
+  // Update UI
+  document.getElementById('score-display').textContent = 'SCORE: ' + score;
+  document.getElementById('health-display').textContent = 'SANITY: ' + '♥'.repeat(Math.max(0, health));
+  document.getElementById('wave-display').textContent = 'WAVE ' + wave + ': ' + WAVES[Math.min(wave - 1, WAVES.length - 1)].name;
+  
+  if (activePowerup) {
+    const bar = '█'.repeat(Math.ceil(powerupTimer / 20));
+    document.getElementById('powerup-display').textContent = activePowerup.toUpperCase() + ' ' + bar;
+    document.getElementById('powerup-display').style.color = 
+      activePowerup === 'rage' ? '#ff4136' : 
+      activePowerup === 'freeze' ? '#01ff70' : 
+      activePowerup === 'shrink' ? '#7fdbff' : '#ffdc00';
+  } else {
+    document.getElementById('powerup-display').textContent = '';
+  }
+}
+
+function draw() {
+  ctx.save();
+  
+  // Screen shake
+  if (screenShake > 0.5) {
+    ctx.translate(
+      (Math.random() - 0.5) * screenShake * 2,
+      (Math.random() - 0.5) * screenShake * 2
+    );
+  }
+  
+  // Background - dark terminal
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, 800, 600);
+  
+  // Grid lines (subtle)
+  ctx.strokeStyle = 'rgba(0, 255, 65, 0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < 800; x += 40) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 600);
+    ctx.stroke();
+  }
+  for (let y = 0; y < 600; y += 40) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(800, y);
+    ctx.stroke();
+  }
+  
+  // Powerup tint
+  if (activePowerup === 'rage') {
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.05)';
+    ctx.fillRect(0, 0, 800, 600);
+  } else if (activePowerup === 'freeze') {
+    ctx.fillStyle = 'rgba(0, 255, 100, 0.05)';
+    ctx.fillRect(0, 0, 800, 600);
+  }
+  
+  // Draw powerups
+  powerups.forEach(drawPowerup);
+  
+  // Draw enemies
+  enemies.forEach(drawEnemy);
+  
+  // Draw player
+  drawPixelChar(player.x, player.y, player.facing);
+  
+  // Rage aura
+  if (activePowerup === 'rage') {
+    ctx.strokeStyle = 'rgba(255, 65, 54, ' + (0.3 + Math.sin(Date.now() * 0.01) * 0.2) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y + 5, 30 + Math.sin(Date.now() * 0.005) * 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  });
+  ctx.globalAlpha = 1;
+  
+  // Floating texts
+  floatingTexts.forEach(t => {
+    ctx.globalAlpha = t.life / 40;
+    ctx.fillStyle = t.color;
+    ctx.font = (t.text.includes('WAVE') ? '14' : '9') + 'px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = t.color;
+    ctx.shadowBlur = 8;
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.shadowBlur = 0;
+  });
+  ctx.globalAlpha = 1;
+  
+  ctx.restore();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('game-over-screen').style.display = 'none';
+  
+  gameRunning = true;
+  score = 0;
+  health = 5;
+  wave = 1;
+  waveTimer = 0;
+  spawnTimer = 0;
+  enemies = [];
+  particles = [];
+  powerups = [];
+  floatingTexts = [];
+  killLog = {};
+  player.x = 400;
+  player.y = 500;
+  activePowerup = null;
+  powerupTimer = 0;
+  comboCount = 0;
+  comboTimer = 0;
+}
+
+function gameOver() {
+  gameRunning = false;
+  document.getElementById('game-over-screen').style.display = 'flex';
+  document.getElementById('final-score').textContent = 'SCORE: ' + score;
+  
+  let logHtml = 'INCIDENT REPORT:<br>';
+  Object.keys(killLog).forEach(key => {
+    logHtml += ENEMY_TYPES[key].name + ': ' + killLog[key] + ' terminated<br>';
+  });
+  logHtml += '<br>Waves survived: ' + wave;
+  document.getElementById('kill-log').innerHTML = logHtml;
+}
+
+// Start game loop
+gameLoop();
+</script>
+
+</body>
+</html>
