@@ -8,7 +8,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 
-- { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
 background: #0a0a0a;
@@ -320,6 +320,10 @@ box-shadow: 0 0 25px rgba(255, 65, 54, 0.6);
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-display');
+const healthEl = document.getElementById('health-display');
+const waveEl = document.getElementById('wave-display');
+const powerupEl = document.getElementById('powerup-display');
 
 // Game state
 let gameRunning = false;
@@ -503,6 +507,23 @@ const ENEMY_TYPES = {
   }
 };
 
+// Offscreen canvas for texture enemy pattern
+const texCanvas = document.createElement('canvas');
+texCanvas.width = 45; texCanvas.height = 45;
+const texCtx = texCanvas.getContext('2d');
+let texFrame = -1;
+function updateTextureCache(timer) {
+  const frame = Math.floor(timer / 5);
+  if (frame === texFrame) return;
+  texFrame = frame;
+  for (let px = 0; px < 45; px += 6) {
+    for (let py = 0; py < 45; py += 6) {
+      texCtx.fillStyle = `hsl(${(px * py + timer) % 360}, 60%, 60%)`;
+      texCtx.fillRect(px, py, 5, 5);
+    }
+  }
+}
+
 const POWERUP_TYPES = {
   assemblyManual: { name: 'ASM MANUAL', color: '#ff4136', duration: 300, effect: 'rage', icon: 'A', desc: 'x86 RAGE MODE!' },
   linter: { name: 'LINTER', color: '#01ff70', duration: 200, effect: 'freeze', icon: 'L', desc: 'LINT ALL THE THINGS!' },
@@ -660,7 +681,6 @@ function drawEnemy(enemy) {
       ctx.bezierCurveTo(w/2, -h/2, w/2, h/2, 0, h/2 + 5);
       ctx.bezierCurveTo(-w/2, h/2, -w/2, -h/2, 0, -h/2);
       ctx.fill();
-      ctx.globalAlpha = 1;
       ctx.fillStyle = '#fff';
       ctx.font = '6px "Press Start 2P"';
       ctx.textAlign = 'center';
@@ -670,13 +690,9 @@ function drawEnemy(enemy) {
     case 'block':
       ctx.fillStyle = type.color;
       ctx.fillRect(-w/2, -h/2, w, h);
-      // Pixelated pattern to look like uncompressed texture
-      for (let px = 0; px < w; px += 6) {
-        for (let py = 0; py < h; py += 6) {
-          ctx.fillStyle = `hsl(${(px * py + enemy.timer) % 360}, 60%, 60%)`;
-          ctx.fillRect(-w/2 + px, -h/2 + py, 5, 5);
-        }
-      }
+      // Pixelated pattern via cached offscreen canvas
+      updateTextureCache(enemy.timer);
+      ctx.drawImage(texCanvas, -w/2, -h/2, w, h);
       ctx.fillStyle = '#fff';
       ctx.font = '6px "Press Start 2P"';
       ctx.textAlign = 'center';
@@ -830,10 +846,10 @@ function checkCaneHit() {
       enemy.hit = 15;
       screenShake = 5;
       
-      // Knockback
+      // Knockback (clamped to canvas)
       const angle = Math.atan2(dy, dx);
-      enemy.x += Math.cos(angle) * 20;
-      enemy.y += Math.sin(angle) * 20;
+      enemy.x = Math.max(0, Math.min(800, enemy.x + Math.cos(angle) * 20));
+      enemy.y = Math.max(0, Math.min(600, enemy.y + Math.sin(angle) * 20));
       
       // Hit particles
       for (let i = 0; i < 8; i++) {
@@ -932,21 +948,22 @@ function update() {
     if (enemy.hit > 0) enemy.hit--;
     
     const type = ENEMY_TYPES[enemy.type];
-    let spd = type.speed;
-    if (activePowerup === 'freeze') spd *= 0.1;
-    if (activePowerup === 'shrink') spd *= 0.7;
-    
+    let enemySpd = type.speed;
+    if (activePowerup === 'freeze') enemySpd *= 0.1;
+    if (activePowerup === 'shrink') enemySpd *= 0.7;
+
     // Move toward player
     const edx = player.x - enemy.x;
     const edy = player.y - enemy.y;
     const elen = Math.sqrt(edx*edx + edy*edy);
     if (elen > 0) {
-      enemy.x += (edx/elen) * spd;
-      enemy.y += (edy/elen) * spd;
+      enemy.x += (edx/elen) * enemySpd;
+      enemy.y += (edy/elen) * enemySpd;
     }
     
-    // Hit player
-    if (elen < 25 && enemy.hit <= 0) {
+    // Hit player — scale collision with enemy size
+    const hitDist = (type.w + type.h) / 4 + 10;
+    if (elen < hitDist && enemy.hit <= 0 && enemy.hp > 0) {
       health--;
       enemy.hp = 0;
       screenShake = 10;
@@ -1046,14 +1063,14 @@ function update() {
   // Spawn powerups
   if (Math.random() < 0.003) spawnPowerup();
   
-  // Wave progression
+  // Wave progression (cap at final wave for endless survival)
   waveTimer++;
-  if (waveTimer >= waveData.duration) {
+  if (waveTimer >= waveData.duration && wave < WAVES.length) {
     wave++;
     waveTimer = 0;
     floatingTexts.push({
       x: 400, y: 200,
-      text: 'WAVE ' + wave + ': ' + WAVES[Math.min(wave - 1, WAVES.length - 1)].name,
+      text: 'WAVE ' + wave + ': ' + WAVES[wave - 1].name,
       life: 80,
       color: '#00ff41'
     });
@@ -1063,25 +1080,26 @@ function update() {
   if (screenShake > 0) screenShake *= 0.85;
   
   // Update UI
-  document.getElementById('score-display').textContent = 'SCORE: ' + score;
-  document.getElementById('health-display').textContent = 'SANITY: ' + '♥'.repeat(Math.max(0, health));
-  document.getElementById('wave-display').textContent = 'WAVE ' + wave + ': ' + WAVES[Math.min(wave - 1, WAVES.length - 1)].name;
-  
+  scoreEl.textContent = 'SCORE: ' + score;
+  healthEl.textContent = 'SANITY: ' + '♥'.repeat(Math.max(0, health));
+  waveEl.textContent = 'WAVE ' + wave + ': ' + WAVES[Math.min(wave - 1, WAVES.length - 1)].name;
+
   if (activePowerup) {
     const bar = '█'.repeat(Math.ceil(powerupTimer / 20));
-    document.getElementById('powerup-display').textContent = activePowerup.toUpperCase() + ' ' + bar;
-    document.getElementById('powerup-display').style.color = 
-      activePowerup === 'rage' ? '#ff4136' : 
-      activePowerup === 'freeze' ? '#01ff70' : 
+    powerupEl.textContent = activePowerup.toUpperCase() + ' ' + bar;
+    powerupEl.style.color =
+      activePowerup === 'rage' ? '#ff4136' :
+      activePowerup === 'freeze' ? '#01ff70' :
       activePowerup === 'shrink' ? '#7fdbff' : '#ffdc00';
   } else {
-    document.getElementById('powerup-display').textContent = '';
+    powerupEl.textContent = '';
   }
 }
 
 function draw() {
+  if (!gameRunning) return;
   ctx.save();
-  
+
   // Screen shake
   if (screenShake > 0.5) {
     ctx.translate(
@@ -1195,12 +1213,18 @@ function gameOver() {
   document.getElementById('game-over-screen').style.display = 'flex';
   document.getElementById('final-score').textContent = 'SCORE: ' + score;
   
-  let logHtml = 'INCIDENT REPORT:<br>';
+  const logEl = document.getElementById('kill-log');
+  logEl.textContent = '';
+  const addLine = (text) => {
+    logEl.appendChild(document.createTextNode(text));
+    logEl.appendChild(document.createElement('br'));
+  };
+  addLine('INCIDENT REPORT:');
   Object.keys(killLog).forEach(key => {
-    logHtml += ENEMY_TYPES[key].name + ': ' + killLog[key] + ' terminated<br>';
+    addLine(ENEMY_TYPES[key].name + ': ' + killLog[key] + ' terminated');
   });
-  logHtml += '<br>Waves survived: ' + wave;
-  document.getElementById('kill-log').innerHTML = logHtml;
+  logEl.appendChild(document.createElement('br'));
+  logEl.appendChild(document.createTextNode('Waves survived: ' + wave));
 }
 
 // Start game loop

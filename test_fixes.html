@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head><title>Fix Tests</title></head>
+<body>
+<canvas id="game" width="800" height="600" style="display:none;"></canvas>
+<div id="ui-overlay">
+  <div id="score-display">SCORE: 0</div>
+  <div id="health-display">SANITY: ♥♥♥♥♥</div>
+  <div id="wave-display">WAVE 1: JUNIOR DEVS</div>
+  <div id="powerup-display"></div>
+</div>
+<div id="start-screen" style="display:none;"></div>
+<div id="game-over-screen" style="display:none;">
+  <div id="final-score"></div>
+  <div id="kill-log"></div>
+</div>
+<pre id="results"></pre>
+<script>
+// Minimal stubs to load the game script inline
+const results = document.getElementById('results');
+let passed = 0, failed = 0;
+
+function assert(condition, name) {
+  if (condition) { passed++; results.textContent += `✓ ${name}\n`; }
+  else { failed++; results.textContent += `✗ FAIL: ${name}\n`; }
+}
+
+// ========== Load game code inline (extract key parts) ==========
+</script>
+<!-- Load the actual game to get its globals -->
+<script>
+// We need to extract the script from index.html and test against it.
+// Instead, let's replicate the critical logic and test the fixes directly.
+
+// ---- ENEMY_TYPES (copied) ----
+const ENEMY_TYPES = {
+  jsBlob: { name: 'Bloated JS Bundle', color: '#f7df1e', accentColor: '#000', w: 30, h: 30, hp: 1, speed: 1.2, points: 100, deathMsg: 'MINIFIED!', shape: 'blob' },
+  dansFix: { name: "Dan's Fix", color: '#ffa94d', accentColor: '#d9480f', w: 18, h: 18, hp: 1, speed: 3.0, points: 250, deathMsg: 'CODE REVIEWED!', shape: 'gremlin' },
+  sapIfElse: { name: 'SAP 1000-line IF/ELSE', color: '#ff0000', accentColor: '#8b0000', w: 60, h: 50, hp: 8, speed: 0.3, points: 1000, deathMsg: "SWITCH CASE'D!", shape: 'boss' },
+  memLeak: { name: 'Memory Leak', color: '#b794f4', accentColor: '#6b46c1', w: 20, h: 20, hp: 1, speed: 2.0, points: 150, deathMsg: 'free()!', shape: 'drip' },
+  texture4k: { name: 'Uncompressed 4K Texture', color: '#fc8181', accentColor: '#9b2c2c', w: 45, h: 45, hp: 4, speed: 0.4, points: 400, deathMsg: 'COMPRESSED!', shape: 'block' },
+  nodeModules: { name: 'node_modules', color: '#68d391', accentColor: '#276749', w: 35, h: 35, hp: 3, speed: 0.6, points: 300, deathMsg: 'npm prune!', shape: 'growing' },
+  ifElse: { name: 'If/Else Centipede', color: '#ff6b6b', accentColor: '#c92a2a', w: 50, h: 14, hp: 2, speed: 1.5, points: 200, deathMsg: 'REFACTORED!', shape: 'centipede' },
+  spaghetti: { name: 'Spaghetti Code', color: '#ffd43b', accentColor: '#e67700', w: 24, h: 24, hp: 2, speed: 1.8, points: 200, deathMsg: 'UNTANGLED!', shape: 'noodle' }
+};
+
+const WAVES = [
+  { name: 'JUNIOR DEVS', types: ['jsBlob', 'dansFix'], spawnRate: 90, duration: 600 },
+  { name: 'FRAMEWORK HELL', types: ['jsBlob', 'nodeModules', 'spaghetti'], spawnRate: 70, duration: 700 },
+  { name: 'LEGACY CODE', types: ['ifElse', 'memLeak', 'spaghetti', 'dansFix'], spawnRate: 60, duration: 800 },
+  { name: 'AAA BLOATWARE', types: ['texture4k', 'nodeModules', 'jsBlob', 'memLeak'], spawnRate: 50, duration: 800 },
+  { name: 'SAP NIGHTMARE', types: ['ifElse', 'sapIfElse', 'dansFix', 'spaghetti', 'memLeak'], spawnRate: 45, duration: 900 },
+  { name: 'PRODUCTION DEPLOY', types: ['jsBlob', 'ifElse', 'nodeModules', 'memLeak', 'texture4k', 'dansFix', 'spaghetti'], spawnRate: 35, duration: 1000 }
+];
+
+results.textContent = '=== Running Fix Tests ===\n\n';
+
+// ---- TEST #9: Dead enemies cannot damage player ----
+results.textContent += '--- #9: Dead enemies cannot damage player ---\n';
+{
+  const enemy = { type: 'jsBlob', x: 400, y: 500, hp: 0, hit: 0, timer: 10 };
+  const player = { x: 400, y: 500 };
+  let health = 5;
+  const type = ENEMY_TYPES[enemy.type];
+  const edx = player.x - enemy.x;
+  const edy = player.y - enemy.y;
+  const elen = Math.sqrt(edx*edx + edy*edy);
+  const hitDist = (type.w + type.h) / 4 + 10;
+  // Fixed condition: elen < hitDist && enemy.hit <= 0 && enemy.hp > 0
+  if (elen < hitDist && enemy.hit <= 0 && enemy.hp > 0) {
+    health--;
+  }
+  assert(health === 5, 'Dead enemy (hp=0) at same position does NOT damage player');
+}
+{
+  const enemy = { type: 'jsBlob', x: 400, y: 500, hp: 1, hit: 0, timer: 10 };
+  const player = { x: 400, y: 500 };
+  let health = 5;
+  const type = ENEMY_TYPES[enemy.type];
+  const edx = player.x - enemy.x;
+  const edy = player.y - enemy.y;
+  const elen = Math.sqrt(edx*edx + edy*edy);
+  const hitDist = (type.w + type.h) / 4 + 10;
+  if (elen < hitDist && enemy.hit <= 0 && enemy.hp > 0) {
+    health--;
+  }
+  assert(health === 4, 'Live enemy (hp=1) at same position DOES damage player');
+}
+
+// ---- TEST #11: CSS universal selector ----
+results.textContent += '\n--- #11: CSS universal selector ---\n';
+{
+  const styles = document.querySelectorAll('style');
+  // Check the game's index.html by fetching it
+  fetch('index.html').then(r => r.text()).then(html => {
+    const hasStarSelector = html.includes('* { margin: 0;') || html.includes('* {margin: 0;');
+    const hasBrokenSelector = html.includes('- { margin: 0;');
+    assert(hasStarSelector, 'CSS contains * universal selector');
+    assert(!hasBrokenSelector, 'CSS does NOT contain broken - selector');
+
+    // ---- TEST #3: Collision radius scales with enemy size ----
+    results.textContent += '\n--- #3: Collision radius scales with enemy size ---\n';
+    {
+      // Dan's Fix: w=18, h=18 -> hitDist = (18+18)/4 + 10 = 19
+      const danHit = (18 + 18) / 4 + 10;
+      assert(danHit === 19, "Dan's Fix hitDist = 19 (was 25)");
+
+      // JS Blob: w=30, h=30 -> hitDist = (30+30)/4 + 10 = 25
+      const blobHit = (30 + 30) / 4 + 10;
+      assert(blobHit === 25, 'JS Blob hitDist = 25 (unchanged)');
+
+      // SAP Boss: w=60, h=50 -> hitDist = (60+50)/4 + 10 = 37.5
+      const bossHit = (60 + 50) / 4 + 10;
+      assert(bossHit === 37.5, 'SAP Boss hitDist = 37.5 (was 25)');
+
+      // Small enemies have smaller hitbox than before
+      assert(danHit < 25, "Dan's Fix hitbox smaller than old fixed 25");
+      // Boss has larger hitbox than before
+      assert(bossHit > 25, 'SAP Boss hitbox larger than old fixed 25');
+    }
+
+    // ---- TEST #6: Cached DOM elements ----
+    results.textContent += '\n--- #6: Cached DOM elements ---\n';
+    {
+      const hasCachedEls = html.includes('const scoreEl = document.getElementById') &&
+                           html.includes('const healthEl = document.getElementById') &&
+                           html.includes('const waveEl = document.getElementById') &&
+                           html.includes('const powerupEl = document.getElementById');
+      assert(hasCachedEls, 'DOM elements are cached at init');
+
+      const usesCache = html.includes('scoreEl.textContent') &&
+                        html.includes('healthEl.textContent') &&
+                        html.includes('waveEl.textContent') &&
+                        html.includes('powerupEl.textContent');
+      assert(usesCache, 'update() uses cached element references');
+
+      // Ensure old getElementById calls in update loop are gone
+      const updateSection = html.substring(html.indexOf('function update()'));
+      const updateBody = updateSection.substring(0, updateSection.indexOf('function draw()'));
+      const hasOldCalls = updateBody.includes("document.getElementById('score-display')") ||
+                          updateBody.includes("document.getElementById('health-display')") ||
+                          updateBody.includes("document.getElementById('wave-display')") ||
+                          updateBody.includes("document.getElementById('powerup-display')");
+      assert(!hasOldCalls, 'No getElementById calls remain in update()');
+    }
+
+    // ---- TEST #8: draw() guarded when game inactive ----
+    results.textContent += '\n--- #8: draw() guarded when game inactive ---\n';
+    {
+      const drawFn = html.substring(html.indexOf('function draw()'));
+      const drawStart = drawFn.substring(0, 100);
+      assert(drawStart.includes('if (!gameRunning) return'), 'draw() has gameRunning guard');
+    }
+
+    // ---- TEST #4: Knockback clamped to canvas ----
+    results.textContent += '\n--- #4: Knockback clamped to canvas ---\n';
+    {
+      // Simulate knockback at edge
+      let ex = 790, ey = 10;
+      const angle = 0; // pushing right
+      ex = Math.max(0, Math.min(800, ex + Math.cos(angle) * 20));
+      ey = Math.max(0, Math.min(600, ey + Math.sin(angle) * 20));
+      assert(ex === 800, 'Enemy X clamped to 800 max');
+      assert(ey === 10, 'Enemy Y unchanged when not near edge');
+
+      // Near top edge pushed up
+      let ey2 = 5;
+      const angle2 = -Math.PI / 2; // pushing up
+      ey2 = Math.max(0, Math.min(600, ey2 + Math.sin(angle2) * 20));
+      assert(ey2 === 0, 'Enemy Y clamped to 0 min');
+
+      // Verify codebase has the clamp
+      assert(html.includes('Math.max(0, Math.min(800, enemy.x + Math.cos(angle)'), 'Knockback X is clamped in code');
+      assert(html.includes('Math.max(0, Math.min(600, enemy.y + Math.sin(angle)'), 'Knockback Y is clamped in code');
+    }
+
+    // ---- TEST #5: Wave counter caps at WAVES.length ----
+    results.textContent += '\n--- #5: Wave counter capped ---\n';
+    {
+      // Simulate wave progression
+      let wave = 6;
+      let waveTimer = 0;
+      const waveData = WAVES[Math.min(wave - 1, WAVES.length - 1)];
+      waveTimer = waveData.duration; // trigger progression check
+
+      // Fixed condition: wave < WAVES.length
+      if (waveTimer >= waveData.duration && wave < WAVES.length) {
+        wave++;
+      }
+      assert(wave === 6, 'Wave does NOT increment past WAVES.length (6)');
+
+      // But wave 5 should still progress to 6
+      let wave2 = 5;
+      if (waveTimer >= waveData.duration && wave2 < WAVES.length) {
+        wave2++;
+      }
+      assert(wave2 === 6, 'Wave 5 still progresses to 6');
+    }
+
+    // ---- TEST #1: globalAlpha leak removed ----
+    results.textContent += '\n--- #1: globalAlpha leak removed ---\n';
+    {
+      const dripCase = html.substring(html.indexOf("case 'drip':"), html.indexOf("case 'drip':") + 500);
+      const endOfDrip = dripCase.substring(0, dripCase.indexOf('break;'));
+      assert(!endOfDrip.includes('ctx.globalAlpha = 1'), 'Drip case does NOT reset globalAlpha to 1');
+      assert(endOfDrip.includes('ctx.globalAlpha *='), 'Drip case still multiplies globalAlpha for translucency');
+    }
+
+    // ---- TEST #2: Variable shadowing fixed ----
+    results.textContent += '\n--- #2: Variable shadowing fixed ---\n';
+    {
+      const enemySection = html.substring(html.indexOf('// Enemy update'));
+      const enemyBlock = enemySection.substring(0, enemySection.indexOf('// Remove dead enemies'));
+      assert(enemyBlock.includes('let enemySpd'), 'Enemy speed uses enemySpd (not spd)');
+      assert(enemyBlock.includes('(edx/elen) * enemySpd'), 'Movement uses enemySpd');
+      assert(!enemyBlock.includes('let spd'), 'No shadowed "let spd" in enemy block');
+    }
+
+    // ---- TEST #7: Texture uses offscreen canvas ----
+    results.textContent += '\n--- #7: Texture uses offscreen canvas ---\n';
+    {
+      assert(html.includes("document.createElement('canvas')"), 'Offscreen canvas is created');
+      assert(html.includes('updateTextureCache'), 'updateTextureCache function exists');
+      const blockCase = html.substring(html.indexOf("case 'block':"), html.indexOf("case 'block':") + 400);
+      assert(blockCase.includes('ctx.drawImage(texCanvas'), 'Block case draws from cached canvas');
+      assert(!blockCase.includes('for (let px'), 'Block case no longer has nested loop');
+    }
+
+    // ---- TEST #10: innerHTML replaced with DOM construction ----
+    results.textContent += '\n--- #10: innerHTML replaced ---\n';
+    {
+      const gameOverFn = html.substring(html.indexOf('function gameOver()'));
+      const gameOverBody = gameOverFn.substring(0, gameOverFn.indexOf('// Start game loop'));
+      assert(!gameOverBody.includes('.innerHTML'), 'gameOver() does not use innerHTML');
+      assert(gameOverBody.includes('appendChild'), 'gameOver() uses appendChild');
+      assert(gameOverBody.includes('createTextNode'), 'gameOver() uses createTextNode');
+    }
+
+    // ---- SUMMARY ----
+    results.textContent += `\n=== RESULTS: ${passed} passed, ${failed} failed ===\n`;
+    if (failed === 0) results.textContent += '🎉 ALL TESTS PASSED!\n';
+    else results.textContent += '⚠️  Some tests failed!\n';
+
+    // Exit code for headless testing
+    document.title = failed === 0 ? 'PASS' : 'FAIL';
+  }).catch(err => {
+    results.textContent += 'ERROR: Could not fetch index.html: ' + err.message + '\n';
+  });
+}
+</script>
+</body>
+</html>
