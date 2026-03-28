@@ -543,13 +543,14 @@ const WAVES = [
 function drawPixelChar(x, y, facing) {
   ctx.save();
   ctx.translate(x, y);
-  
+  ctx.scale(facing, 1);
+
   // Body - grumpy old programmer
   // Hair (gray, wild)
   ctx.fillStyle = '#c0c0c0';
-  ctx.fillRect(-10 * facing, -18, 20, 6);
-  ctx.fillRect(-12 * facing, -16, 4, 4);
-  ctx.fillRect(8 * facing, -16, 4, 4);
+  ctx.fillRect(-10, -18, 20, 6);
+  ctx.fillRect(-12, -16, 4, 4);
+  ctx.fillRect(8, -16, 4, 4);
   
   // Head
   ctx.fillStyle = '#ffd5b4';
@@ -590,8 +591,8 @@ function drawPixelChar(x, y, facing) {
   // Cane
   if (caneSwinging) {
     ctx.save();
-    ctx.translate(6 * facing, 4);
-    ctx.rotate(caneAngle * facing);
+    ctx.translate(6, 4);
+    ctx.rotate(caneAngle);
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(0, -2, 30, 3);
     ctx.fillStyle = '#D2691E';
@@ -606,9 +607,9 @@ function drawPixelChar(x, y, facing) {
   } else {
     // Cane at rest
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(8 * facing, 2, 3, 26);
+    ctx.fillRect(8, 2, 3, 26);
     ctx.fillStyle = '#D2691E';
-    ctx.fillRect(6 * facing, 0, 7, 4);
+    ctx.fillRect(6, 0, 7, 4);
   }
   
   ctx.restore();
