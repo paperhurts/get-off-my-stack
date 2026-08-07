@@ -611,14 +611,19 @@ const WAVES = [
 function drawPixelChar(x, y, facing) {
   ctx.save();
   ctx.translate(x, y);
-  
+  // Mirror the whole sprite in one go. Negating individual x offsets does NOT
+  // mirror a rect — it moves the anchor while the rect still extends rightward,
+  // so facing left threw the 20px-wide hair block clear of the head (which had
+  // no facing term at all) and left it floating off to the right.
+  ctx.scale(facing, 1);
+
   // Body - grumpy old programmer
   // Hair (gray, wild)
   ctx.fillStyle = '#c0c0c0';
-  ctx.fillRect(-10 * facing, -18, 20, 6);
-  ctx.fillRect(-12 * facing, -16, 4, 4);
-  ctx.fillRect(8 * facing, -16, 4, 4);
-  
+  ctx.fillRect(-10, -18, 20, 6);
+  ctx.fillRect(-12, -16, 4, 4);
+  ctx.fillRect(8, -16, 4, 4);
+
   // Head
   ctx.fillStyle = '#ffd5b4';
   ctx.fillRect(-8, -14, 16, 14);
@@ -659,8 +664,10 @@ function drawPixelChar(x, y, facing) {
   // Cane
   if (caneSwinging) {
     ctx.save();
-    ctx.translate(6 * facing, 4);
-    ctx.rotate(caneAngle * facing);
+    // Under the mirror the rotation flips with everything else, so no
+    // per-facing terms are needed here either.
+    ctx.translate(6, 4);
+    ctx.rotate(caneAngle);
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(0, -2, 30, 3);
     ctx.fillStyle = '#D2691E';
@@ -675,9 +682,9 @@ function drawPixelChar(x, y, facing) {
   } else {
     // Cane at rest
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(8 * facing, 2, 3, 26);
+    ctx.fillRect(8, 2, 3, 26);
     ctx.fillStyle = '#D2691E';
-    ctx.fillRect(6 * facing, 0, 7, 4);
+    ctx.fillRect(6, 0, 7, 4);
   }
   
   ctx.restore();
@@ -1062,8 +1069,43 @@ function addText(x, y, text, life, color) {
   floatingTexts.push({ x, y, text, life, maxLife: life, color });
 }
 
+// The cane sweeps an arc in FRONT of the player, plus a bubble centred ON him
+// so anything already in your face still gets smacked. The old test was a
+// circle centred 40px ahead with radius 30, which covered 10-70px forward and
+// left a dead zone over the player's own body — precisely where enemies end up,
+// because every one of them homes straight in on you. You could be surrounded
+// and swing through all of it.
+// 72/92 rather than something tighter so the new arc strictly contains the old
+// hitbox: the old circle reached 70px forward (90 in rage), and nobody should
+// lose a poke they used to land.
+const CANE_RANGE = 72;
+const CANE_RANGE_RAGE = 92;
+const CANE_CLOSE = 30;   // hits regardless of which way you're facing
+const CANE_ACTIVE_FROM = 4;
+const CANE_ACTIVE_TO = 9;
+
+function caneRange() {
+  return activePowerup === 'rage' ? CANE_RANGE_RAGE : CANE_RANGE;
+}
+
+// Melee assist: if the nearest thing in reach is behind you, turn into it.
+// On touch, facing only changes when the stick is pushed sideways, so being
+// chased from behind while walking up was unwinnable.
+function faceNearestTarget() {
+  let best = null, bestDist = Infinity;
+  for (const enemy of enemies) {
+    if (enemy.hp <= 0) continue;
+    const d = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+    if (d < bestDist) { bestDist = d; best = enemy; }
+  }
+  if (!best || bestDist > caneRange()) return;
+  const dx = best.x - player.x;
+  if (dx * player.facing < 0 && Math.abs(dx) > 6) player.facing = dx > 0 ? 1 : -1;
+}
+
 function swingCane() {
   if (!caneSwinging && gameRunning) {
+    faceNearestTarget();
     caneSwinging = true;
     caneAngle = -1.5;
     caneTimer = 0;
@@ -1072,18 +1114,19 @@ function swingCane() {
 
 function checkCaneHit() {
   if (!caneSwinging) return;
-  
-  const caneReach = 40;
-  const caneX = player.x + player.facing * caneReach;
-  const caneY = player.y;
-  const hitRadius = activePowerup === 'rage' ? 50 : 30;
-  
+
+  const range = caneRange();
+
   enemies.forEach(enemy => {
-    const dx = enemy.x - caneX;
-    const dy = enemy.y - caneY;
+    const dx = enemy.x - player.x;
+    const dy = enemy.y - (player.y + 4);
     const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist < hitRadius && enemy.hit <= 0) {
+
+    // Forward half-disc, or close enough that facing shouldn't matter.
+    const reaches = dist < range &&
+      (dx * player.facing > -8 || dist < CANE_CLOSE);
+
+    if (reaches && enemy.hit <= 0) {
       const damage = activePowerup === 'rage' ? 3 : 1;
       enemy.hp -= damage;
       enemy.hit = 15;
@@ -1156,7 +1199,10 @@ function update() {
   if (caneSwinging) {
     caneTimer++;
     caneAngle += 0.25;
-    if (caneTimer === 6) checkCaneHit();
+    // Live for several frames rather than one. At 60fps a single-frame test was
+    // a 16ms window, so a Dan's Fix at speed 3 could cross the whole arc between
+    // checks. enemy.hit gates repeats, so this can't double-hit within a swing.
+    if (caneTimer >= CANE_ACTIVE_FROM && caneTimer <= CANE_ACTIVE_TO) checkCaneHit();
     if (caneTimer > 12) { caneSwinging = false; caneAngle = 0; }
   }
   
@@ -1373,6 +1419,23 @@ function draw() {
   // Draw enemies
   enemies.forEach(drawEnemy);
   
+  // Swing arc — shows exactly what the cane covers, while it covers it, so the
+  // hitbox is something you can read instead of something you infer from deaths.
+  if (caneSwinging && caneTimer >= CANE_ACTIVE_FROM && caneTimer <= CANE_ACTIVE_TO) {
+    const range = caneRange();
+    const fade = 1 - (caneTimer - CANE_ACTIVE_FROM) / (CANE_ACTIVE_TO - CANE_ACTIVE_FROM + 1);
+    const start = player.facing === 1 ? -Math.PI / 2 : Math.PI / 2;
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = activePowerup === 'rage'
+      ? `rgba(255, 65, 54, ${0.15 + fade * 0.45})`
+      : `rgba(255, 220, 0, ${0.12 + fade * 0.33})`;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y + 4, range - 4, start, start + Math.PI);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Draw player
   drawPixelChar(player.x, player.y, player.facing);
   
