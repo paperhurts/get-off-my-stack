@@ -8,6 +8,12 @@ function assert(condition, name) {
   else { failed++; console.log(`  ✗ FAIL: ${name}`); }
 }
 
+// Assertions about what the code does shouldn't trip over comments that merely
+// describe the thing being asserted against. Keeps `//` out, leaves URLs alone.
+const stripComments = (s) => s
+  .replace(/^\s*\/\/.*$/gm, '')
+  .replace(/([^:'"])\/\/.*$/gm, '$1');
+
 // ---- ENEMY_TYPES (for computation tests) ----
 const ENEMY_TYPES = {
   jsBlob: { w: 30, h: 30, hp: 1 },
@@ -17,7 +23,8 @@ const ENEMY_TYPES = {
   texture4k: { w: 45, h: 45, hp: 4 },
 };
 
-const WAVES_LENGTH = 6;
+// Read straight out of the source so this can't drift from the game.
+const WAVES_LENGTH = (html.match(/^\s*\{ name: '[^']+', types: \[/gm) || []).length;
 
 console.log('=== Running Fix Tests ===\n');
 
@@ -116,13 +123,15 @@ console.log('\n#4: Knockback clamped to canvas bounds');
 // ---- TEST #5: Wave counter capped ----
 console.log('\n#5: Wave counter capped at WAVES.length');
 {
-  let wave = 6;
-  if (wave < WAVES_LENGTH) { wave++; }
-  assert(wave === 6, 'Wave 6 does NOT increment past max');
+  assert(WAVES_LENGTH > 0, `Parsed ${WAVES_LENGTH} waves from source`);
 
-  let wave2 = 5;
+  let wave = WAVES_LENGTH;
+  if (wave < WAVES_LENGTH) { wave++; }
+  assert(wave === WAVES_LENGTH, 'Final wave does NOT increment past max');
+
+  let wave2 = WAVES_LENGTH - 1;
   if (wave2 < WAVES_LENGTH) { wave2++; }
-  assert(wave2 === 6, 'Wave 5 still progresses to 6');
+  assert(wave2 === WAVES_LENGTH, 'Penultimate wave still progresses to the last');
 
   assert(html.includes('wave < WAVES.length)'), 'Source caps wave at WAVES.length');
 }
@@ -156,7 +165,8 @@ console.log('\n#7: Texture enemy uses offscreen canvas');
   const blockStart = html.indexOf("case 'block':");
   const blockEnd = html.indexOf('break;', blockStart);
   const blockCase = html.substring(blockStart, blockEnd);
-  assert(blockCase.includes('updateTextureCache(enemy.timer)'), 'Block calls updateTextureCache');
+  assert(blockCase.includes('updateTextureCache(gameTick)'),
+    'Block calls updateTextureCache with the global tick (per-enemy timer thrashed the cache)');
   assert(blockCase.includes('ctx.drawImage(texCanvas'), 'Block draws from cached canvas');
   assert(!blockCase.includes('for (let px'), 'Block no longer has nested pixel loop');
 }
@@ -171,6 +181,104 @@ console.log('\n#10: innerHTML replaced with safe DOM construction');
   assert(goBody.includes('appendChild'), 'Uses appendChild');
   assert(goBody.includes('createTextNode'), 'Uses createTextNode');
   assert(goBody.includes("createElement('br')"), 'Uses createElement for line breaks');
+}
+
+// ---- TEST #12: CSS font-family declarations are valid ----
+console.log('\n#12: font-family uses straight quotes (curly quotes void the declaration)');
+{
+  const curly = (html.match(/font-family:[^;]*[‘’][^;]*;/g) || []);
+  assert(curly.length === 0, `No smart quotes in font-family (found ${curly.length})`);
+  const decls = (html.match(/font-family:[^;]+;/g) || []);
+  assert(decls.length > 0, `Found ${decls.length} font-family declarations`);
+  assert(decls.every(d => !/[‘’“”]/.test(d)),
+    'Every font-family declaration is free of typographic quotes');
+  // Canvas font strings too — ctx.font silently ignores an unparseable value.
+  const canvasFonts = (html.match(/ctx\.font\s*=\s*'[^']+'/g) || []);
+  assert(canvasFonts.every(f => !/[‘’“”]/.test(f)),
+    'Every ctx.font string is free of typographic quotes');
+}
+
+// ---- TEST #13: fixed timestep ----
+console.log('\n#13: Game loop is frame-rate independent');
+{
+  assert(html.includes('const FRAME_MS = 1000 / 60'), 'Source defines a fixed 60Hz timestep');
+  assert(html.includes('frameAccumulator'), 'Source accumulates elapsed time');
+  assert(html.includes('MAX_CATCHUP_STEPS'), 'Source bounds catch-up steps (no spiral of death)');
+  assert(html.includes('lastFrameTime === null'), 'Uses a null sentinel, not a falsy 0 check');
+  assert(/requestAnimationFrame\(gameLoop\);\s*$/m.test(html.trim()) || html.includes('requestAnimationFrame(gameLoop);'),
+    'Loop is kicked off through requestAnimationFrame');
+}
+
+// ---- TEST #14: multi-touch joystick ----
+console.log('\n#14: Joystick tracks its own finger');
+{
+  assert(html.includes('joystickTouchId'), 'Joystick tracks a touch identifier');
+  const jsStart = html.indexOf('if (joystickZone)');
+  const jsEnd = html.indexOf('if (smackBtn)');
+  const jsBlock = html.substring(jsStart, jsEnd);
+  assert(!stripComments(jsBlock).includes('e.touches[0]'),
+    'No blind e.touches[0] (grabbed the SMACK finger when both were down)');
+  assert(jsBlock.includes('changedTouches'), 'Uses changedTouches for start/end');
+}
+
+// ---- TEST #15: bosses survive contact ----
+console.log('\n#15: Bosses are not deleted by walking into them');
+{
+  assert(html.includes('boss: true'), 'Boss types are flagged');
+  const collision = html.substring(html.indexOf('// Hit player'), html.indexOf('// Remove dead enemies'));
+  assert(collision.includes('if (type.boss)'), 'Collision branches on boss');
+  assert(collision.includes('enemy.hit = 30'), 'Bosses get knockback i-frames instead of dying');
+  assert(collision.includes('enemy.hp = 0'), 'Regular enemies still die on contact');
+  assert(html.includes('ENEMY_TYPES[typeKey].boss && enemies.some'), 'Boss spawns are capped at one alive');
+}
+
+// ---- TEST #16: particle/text fade uses real lifetimes ----
+console.log('\n#16: Fading uses each effect\'s own lifetime');
+{
+  assert(html.includes('p.life / p.maxLife'), 'Particles fade against maxLife');
+  assert(html.includes('t.life / t.maxLife'), 'Floating texts fade against maxLife');
+  assert(!html.includes('p.life / 30'), 'No hardcoded /30 particle fade');
+  assert(!html.includes('t.life / 40'), 'No hardcoded /40 text fade');
+  assert(html.includes('function addParticles') && html.includes('function addText'),
+    'Spawning goes through helpers that record maxLife');
+}
+
+// ---- TEST #17: restart clears transient state ----
+console.log('\n#17: startGame() clears transient state');
+{
+  const sg = html.substring(html.indexOf('function startGame()'), html.indexOf('function gameOver()'));
+  ['screenShake = 0', 'caneSwinging = false', 'caneAngle = 0', 'caneTimer = 0',
+   'lastFrameTime = null', 'frameAccumulator = 0'].forEach(frag => {
+    assert(sg.includes(frag), `startGame() resets ${frag.split(' ')[0]}`);
+  });
+}
+
+// ---- TEST #18: Clippy ----
+console.log('\n#18: Clippy boss');
+{
+  assert(html.includes('clippy: {'), 'clippy enemy type defined');
+  assert(html.includes('CLIPPY_SUGGESTIONS'), 'Clippy has a suggestion list');
+  assert(html.includes("case 'clippy':"), 'drawEnemy handles the clippy shape');
+  assert(html.includes('function drawClippy'), 'Clippy has its own renderer');
+  assert(html.includes('function drawSpeechBubble'), 'Speech bubble renderer exists');
+  assert(html.includes("name: 'OFFICE ASSISTANT'"), 'Clippy gets a dedicated wave');
+  assert(html.includes("activePowerup !== 'freeze'"), 'LINTER suppresses the summon');
+  assert(!stripComments(html).includes('ctx.roundRect'), 'Speech bubble avoids roundRect (would throw on old engines)');
+}
+
+// ---- TEST #19: keys released on blur ----
+console.log('\n#19: Held keys released on window blur');
+{
+  assert(html.includes("window.addEventListener('blur'"), 'Blur handler registered');
+  assert(html.includes('for (const k in keys) keys[k] = false'), 'Blur clears every held key');
+}
+
+// ---- TEST #20: dead code removed ----
+console.log('\n#20: Dead code removed / put to use');
+{
+  assert(!html.includes('targetX:'), 'Unused targetX removed from spawned enemies');
+  assert(!html.includes('targetY:'), 'Unused targetY removed from spawned enemies');
+  assert(html.includes('player.walkFrame]'), 'walkFrame is actually used when drawing legs');
 }
 
 // ---- SUMMARY ----

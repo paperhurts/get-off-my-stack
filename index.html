@@ -18,7 +18,7 @@ justify-content: center;
 align-items: center;
 min-height: 100vh;
 min-height: 100dvh;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 overflow: hidden;
 touch-action: none;
 -webkit-user-select: none;
@@ -59,7 +59,7 @@ top: 10px;
 left: 15px;
 color: #00ff41;
 font-size: 10px;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
 }
 
@@ -69,7 +69,7 @@ top: 10px;
 right: 15px;
 color: #ff4136;
 font-size: 10px;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 text-shadow: 0 0 8px rgba(255, 65, 54, 0.6);
 }
 
@@ -79,7 +79,7 @@ top: 30px;
 left: 15px;
 color: #ffdc00;
 font-size: 8px;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 text-shadow: 0 0 8px rgba(255, 220, 0, 0.6);
 }
 
@@ -89,7 +89,7 @@ bottom: 10px;
 left: 15px;
 color: #01ff70;
 font-size: 7px;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 }
 
 #start-screen, #game-over-screen {
@@ -113,7 +113,7 @@ padding: 20px;
 .title {
 color: #00ff41;
 font-size: min(28px, 6vw);
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 text-shadow: 0 0 20px rgba(0, 255, 65, 0.8), 0 0 40px rgba(0, 255, 65, 0.4);
 margin-bottom: 10px;
 animation: flicker 3s infinite;
@@ -122,7 +122,7 @@ animation: flicker 3s infinite;
 .subtitle {
 color: #ffdc00;
 font-size: min(10px, 2.5vw);
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 margin-bottom: 30px;
 text-shadow: 0 0 10px rgba(255, 220, 0, 0.5);
 }
@@ -130,7 +130,7 @@ text-shadow: 0 0 10px rgba(255, 220, 0, 0.5);
 .instructions {
 color: #7fdbff;
 font-size: min(8px, 2vw);
-font-family: ‘VT323’, monospace;
+font-family: 'VT323', monospace;
 line-height: 2.2;
 text-align: center;
 margin-bottom: 20px;
@@ -140,7 +140,7 @@ margin-bottom: 20px;
 background: none;
 border: 2px solid #00ff41;
 color: #00ff41;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 font-size: 12px;
 padding: 15px 30px;
 cursor: pointer;
@@ -158,7 +158,7 @@ box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
 .game-over-title {
 color: #ff4136;
 font-size: 24px;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 text-shadow: 0 0 20px rgba(255, 65, 54, 0.8);
 margin-bottom: 20px;
 }
@@ -166,14 +166,14 @@ margin-bottom: 20px;
 .final-score {
 color: #ffdc00;
 font-size: 14px;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 margin-bottom: 10px;
 }
 
 .kill-log {
 color: #7fdbff;
 font-size: 8px;
-font-family: ‘VT323’, monospace;
+font-family: 'VT323', monospace;
 margin-bottom: 30px;
 line-height: 1.8;
 text-align: center;
@@ -251,7 +251,7 @@ border-radius: 50%;
 border: 3px solid #ff4136;
 background: rgba(255, 65, 54, 0.15);
 color: #ff4136;
-font-family: ‘Press Start 2P’, monospace;
+font-family: 'Press Start 2P', monospace;
 font-size: 11px;
 display: flex;
 align-items: center;
@@ -259,6 +259,8 @@ justify-content: center;
 touch-action: none;
 box-shadow: 0 0 15px rgba(255, 65, 54, 0.3);
 text-shadow: 0 0 8px rgba(255, 65, 54, 0.6);
+cursor: pointer;
+-webkit-tap-highlight-color: transparent;
 }
 
 #smack-btn:active {
@@ -314,7 +316,7 @@ box-shadow: 0 0 25px rgba(255, 65, 54, 0.6);
   <div id="joystick-zone">
     <div id="joystick-knob"></div>
   </div>
-  <div id="smack-btn">SMACK!</div>
+  <button type="button" id="smack-btn" aria-label="Swing cane">SMACK!</button>
 </div>
 
 <script>
@@ -345,6 +347,7 @@ let activePowerup = null;
 let powerupTimer = 0;
 let comboCount = 0;
 let comboTimer = 0;
+let gameTick = 0;
 
 // Player
 const player = {
@@ -364,10 +367,16 @@ document.addEventListener('keydown', e => {
   if (['arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+// Alt-tabbing while holding a direction used to leave the player walking into
+// a wall forever, because the keyup landed on the other window.
+window.addEventListener('blur', () => {
+  for (const k in keys) keys[k] = false;
+});
 
 // Touch controls
 let touchMove = { x: 0, y: 0 };
 let joystickActive = false;
+let joystickTouchId = null;
 
 const joystickZone = document.getElementById('joystick-zone');
 const joystickKnob = document.getElementById('joystick-knob');
@@ -394,26 +403,48 @@ if (joystickZone) {
     touchMove.y = dy / maxDist;
   };
   
-  joystickZone.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    joystickActive = true;
-    getJoystickInput(e.touches[0]);
-  }, { passive: false });
-  
-  joystickZone.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if (joystickActive) getJoystickInput(e.touches[0]);
-  }, { passive: false });
-  
+  // Track which finger owns the stick. e.touches[0] is the first touch on the
+  // *screen*, so holding SMACK and then grabbing the stick used to feed the
+  // SMACK finger's coordinates into the joystick and yank the player sideways.
+  const findTouch = (touchList, id) => {
+    for (let i = 0; i < touchList.length; i++) {
+      if (touchList[i].identifier === id) return touchList[i];
+    }
+    return null;
+  };
+
   const resetJoystick = () => {
+    joystickTouchId = null;
     joystickActive = false;
     touchMove.x = 0;
     touchMove.y = 0;
     joystickKnob.style.transform = 'translate(-50%, -50%)';
   };
-  
-  joystickZone.addEventListener('touchend', (e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
-  joystickZone.addEventListener('touchcancel', (e) => { e.preventDefault(); resetJoystick(); }, { passive: false });
+
+  joystickZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (joystickTouchId !== null) return;
+    const touch = e.changedTouches[0];
+    joystickTouchId = touch.identifier;
+    joystickActive = true;
+    getJoystickInput(touch);
+  }, { passive: false });
+
+  joystickZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (joystickTouchId === null) return;
+    const touch = findTouch(e.touches, joystickTouchId);
+    if (touch) getJoystickInput(touch);
+  }, { passive: false });
+
+  const endJoystick = (e) => {
+    e.preventDefault();
+    // Only release when the finger that owns the stick is the one lifting.
+    if (joystickTouchId !== null && findTouch(e.changedTouches, joystickTouchId)) resetJoystick();
+  };
+
+  joystickZone.addEventListener('touchend', endJoystick, { passive: false });
+  joystickZone.addEventListener('touchcancel', endJoystick, { passive: false });
 }
 
 if (smackBtn) {
@@ -421,6 +452,11 @@ if (smackBtn) {
     e.preventDefault();
     swingCane();
   }, { passive: false });
+  // Keyboard/mouse fallback so the button works outside touch too.
+  smackBtn.addEventListener('click', () => swingCane());
+  smackBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); swingCane(); }
+  });
 }
 
 // Enemy types
@@ -503,22 +539,53 @@ const ENEMY_TYPES = {
     hp: 8, speed: 0.3,
     points: 1000,
     deathMsg: 'SWITCH CASE\'D!',
-    shape: 'boss'
+    shape: 'boss',
+    boss: true
+  },
+  clippy: {
+    name: 'Clippy',
+    color: '#dfe4ea',
+    accentColor: '#4a90d9',
+    w: 55, h: 60,
+    hp: 12, speed: 0.45,
+    points: 2000,
+    deathMsg: 'SUGGESTION DECLINED!',
+    shape: 'clippy',
+    boss: true,
+    // Doesn't fight you so much as offer to help, repeatedly, forever.
+    summons: 'dansFix',
+    summonCount: 2,
+    summonInterval: 210
   }
 };
+
+// Clippy's unsolicited advice. Pre-split into lines so the speech bubble never
+// has to measure or wrap text mid-frame.
+const CLIPPY_SUGGESTIONS = [
+  ['It looks like', "you're writing", 'a for loop!'],
+  ['Would you like', 'help with that?'],
+  ['This could be', 'a match arm.'],
+  ['I found 47 more', 'suggestions!'],
+  ['Have you tried', 'a framework?'],
+  ['Let me refactor', 'that for you.']
+];
 
 // Offscreen canvas for texture enemy pattern
 const texCanvas = document.createElement('canvas');
 texCanvas.width = 45; texCanvas.height = 45;
 const texCtx = texCanvas.getContext('2d');
 let texFrame = -1;
-function updateTextureCache(timer) {
-  const frame = Math.floor(timer / 5);
+// Keyed off a global tick, not a per-enemy timer: with two textures on screen
+// the shared cache used to be invalidated by each one in turn, so it rebuilt
+// 64 rects per enemy per frame — strictly worse than not caching at all.
+function updateTextureCache(tick) {
+  const frame = Math.floor(tick / 5);
   if (frame === texFrame) return;
   texFrame = frame;
+  const shift = frame * 5;
   for (let px = 0; px < 45; px += 6) {
     for (let py = 0; py < 45; py += 6) {
-      texCtx.fillStyle = `hsl(${(px * py + timer) % 360}, 60%, 60%)`;
+      texCtx.fillStyle = `hsl(${(px * py + shift) % 360}, 60%, 60%)`;
       texCtx.fillRect(px, py, 5, 5);
     }
   }
@@ -537,7 +604,8 @@ const WAVES = [
   { name: 'LEGACY CODE', types: ['ifElse', 'memLeak', 'spaghetti', 'dansFix'], spawnRate: 60, duration: 800 },
   { name: 'AAA BLOATWARE', types: ['texture4k', 'nodeModules', 'jsBlob', 'memLeak'], spawnRate: 50, duration: 800 },
   { name: 'SAP NIGHTMARE', types: ['ifElse', 'sapIfElse', 'dansFix', 'spaghetti', 'memLeak'], spawnRate: 45, duration: 900 },
-  { name: 'PRODUCTION DEPLOY', types: ['jsBlob', 'ifElse', 'nodeModules', 'memLeak', 'texture4k', 'dansFix', 'spaghetti'], spawnRate: 35, duration: 1000 }
+  { name: 'OFFICE ASSISTANT', types: ['clippy', 'dansFix', 'jsBlob', 'spaghetti', 'memLeak'], spawnRate: 50, duration: 900 },
+  { name: 'PRODUCTION DEPLOY', types: ['jsBlob', 'ifElse', 'nodeModules', 'memLeak', 'texture4k', 'dansFix', 'spaghetti', 'sapIfElse', 'clippy'], spawnRate: 35, duration: 1000 }
 ];
 
 function drawPixelChar(x, y, facing) {
@@ -577,15 +645,16 @@ function drawPixelChar(x, y, facing) {
   ctx.fillRect(-4, 8, 4, 4);
   ctx.fillRect(4, 8, 4, 4);
   
-  // Legs
+  // Legs — walkFrame was tracked but never drawn, so he used to glide.
+  const step = [0, 2, 0, -2][player.walkFrame];
   ctx.fillStyle = '#2c3e50';
-  ctx.fillRect(-8, 16, 7, 10);
-  ctx.fillRect(1, 16, 7, 10);
-  
+  ctx.fillRect(-8, 16, 7, 10 - step);
+  ctx.fillRect(1, 16, 7, 10 + step);
+
   // Shoes
   ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(-9, 24, 8, 4);
-  ctx.fillRect(1, 24, 8, 4);
+  ctx.fillRect(-9, 24 - step, 8, 4);
+  ctx.fillRect(1, 24 + step, 8, 4);
   
   // Cane
   if (caneSwinging) {
@@ -691,7 +760,7 @@ function drawEnemy(enemy) {
       ctx.fillStyle = type.color;
       ctx.fillRect(-w/2, -h/2, w, h);
       // Pixelated pattern via cached offscreen canvas
-      updateTextureCache(enemy.timer);
+      updateTextureCache(gameTick);
       ctx.drawImage(texCanvas, -w/2, -h/2, w, h);
       ctx.fillStyle = '#fff';
       ctx.font = '6px "Press Start 2P"';
@@ -750,14 +819,153 @@ function drawEnemy(enemy) {
         const li = (scroll + i) % lines.length;
         ctx.fillText(lines[li], -w/2 + 4, -h/2 + 10 + i * 9);
       }
-      // HP bar
-      ctx.fillStyle = '#333';
-      ctx.fillRect(-w/2, -h/2 - 8, w, 5);
-      ctx.fillStyle = '#ff0000';
-      ctx.fillRect(-w/2, -h/2 - 8, w * (enemy.hp / ENEMY_TYPES[enemy.type].hp), 5);
+      break;
+
+    case 'clippy':
+      drawClippy(enemy);
       break;
   }
-  
+
+  // HP bar for anything that qualifies as a boss.
+  if (type.boss) {
+    const barY = -h/2 - (type.shape === 'clippy' ? 16 : 8);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-w/2, barY, w, 5);
+    ctx.fillStyle = type.shape === 'clippy' ? '#4a90d9' : '#ff0000';
+    ctx.fillRect(-w/2, barY, w * Math.max(0, enemy.hp / type.hp), 5);
+  }
+
+  ctx.restore();
+
+  // Speech bubble sits outside the wobble/scale transform so the text stays
+  // upright and legible even while Clippy is shrunk by gcc -O3.
+  if (enemy.speechTimer > 0) drawSpeechBubble(enemy);
+}
+
+// A bent paperclip: an outer U, an arch folding over the top, and an inner U.
+function drawClippy(enemy) {
+  // Brief blink every ~3s. Offset so a freshly spawned Clippy isn't born
+  // mid-blink with its eyes shut.
+  const blink = (enemy.timer + 40) % 180 < 8;
+
+  const uUp = (halfW, top, bottom) => {
+    ctx.beginPath();
+    ctx.moveTo(-halfW, top);
+    ctx.lineTo(-halfW, bottom - halfW);
+    ctx.quadraticCurveTo(-halfW, bottom, 0, bottom);
+    ctx.quadraticCurveTo(halfW, bottom, halfW, bottom - halfW);
+    ctx.lineTo(halfW, top);
+    ctx.stroke();
+  };
+  const uDown = (halfW, bottom, top) => {
+    ctx.beginPath();
+    ctx.moveTo(-halfW, bottom);
+    ctx.lineTo(-halfW, top + halfW);
+    ctx.quadraticCurveTo(-halfW, top, 0, top);
+    ctx.quadraticCurveTo(halfW, top, halfW, top + halfW);
+    ctx.lineTo(halfW, bottom);
+    ctx.stroke();
+  };
+
+  ctx.strokeStyle = '#b8c2cc';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  uUp(17, -22, 24);
+  uDown(10, 20, -30);
+  ctx.lineWidth = 4;
+  uUp(4, -20, 12);
+
+  // Highlight pass so the wire reads as metal, not a flat outline.
+  ctx.strokeStyle = '#f1f4f7';
+  ctx.lineWidth = 1.5;
+  uUp(17, -22, 24);
+  uDown(10, 20, -30);
+
+  // Googly eyes, pupils tracking the player.
+  const look = Math.max(-1.6, Math.min(1.6, (player.x - enemy.x) / 60));
+  const lookY = Math.max(-1.6, Math.min(1.6, (player.y - enemy.y) / 60));
+  [-7.5, 7.5].forEach(ex => {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(ex, -24, 6, blink ? 1 : 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#3d4852';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    if (!blink) {
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.arc(ex + look, -24 + lookY, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  // Eyebrows — helpful by default, furrowed while winding up a suggestion.
+  const scheming = enemy.attackTimer > ENEMY_TYPES.clippy.summonInterval - 60;
+  ctx.strokeStyle = scheming ? '#ff8a5c' : '#c8d0d8';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-12, scheming ? -36 : -35);
+  ctx.lineTo(-3, scheming ? -32 : -36);
+  ctx.moveTo(3, scheming ? -32 : -36);
+  ctx.lineTo(12, scheming ? -36 : -35);
+  ctx.stroke();
+}
+
+function drawSpeechBubble(enemy) {
+  const lines = enemy.speechLines;
+  if (!lines) return;
+
+  ctx.save();
+  ctx.translate(enemy.x, enemy.y);
+  ctx.globalAlpha = Math.min(1, enemy.speechTimer / 15);
+
+  const lineH = 9;
+  const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
+  const bw = longest * 5.2 + 12;
+  const bh = lines.length * lineH + 10;
+  const bx = -bw / 2;
+  const by = -58 - bh; // clears the boss HP bar sitting at -46
+
+  ctx.fillStyle = '#fffde7';
+  ctx.strokeStyle = '#4a90d9';
+  ctx.lineWidth = 2;
+  // Hand-rolled rounded rect: ctx.roundRect is recent enough that a miss would
+  // throw on every frame rather than degrade.
+  const r = 4;
+  ctx.beginPath();
+  ctx.moveTo(bx + r, by);
+  ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+  ctx.arcTo(bx + bw, by + bh, bx, by + bh, r);
+  ctx.arcTo(bx, by + bh, bx, by, r);
+  ctx.arcTo(bx, by, bx + bw, by, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Tail pointing down at Clippy
+  ctx.beginPath();
+  ctx.moveTo(-5, by + bh);
+  ctx.lineTo(0, by + bh + 8);
+  ctx.lineTo(5, by + bh);
+  ctx.closePath();
+  ctx.fillStyle = '#fffde7';
+  ctx.fill();
+  ctx.strokeStyle = '#4a90d9';
+  ctx.beginPath();
+  ctx.moveTo(-5, by + bh);
+  ctx.lineTo(0, by + bh + 8);
+  ctx.lineTo(5, by + bh);
+  ctx.stroke();
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = '5px "Press Start 2P", monospace';
+  ctx.textAlign = 'center';
+  lines.forEach((line, i) => {
+    ctx.fillText(line, 0, by + 12 + i * lineH);
+  });
+
   ctx.restore();
 }
 
@@ -787,36 +995,71 @@ function drawPowerup(p) {
 
 function spawnEnemy() {
   const waveData = WAVES[Math.min(wave - 1, WAVES.length - 1)];
-  const typeKey = waveData.types[Math.floor(Math.random() * waveData.types.length)];
+  let typeKey = waveData.types[Math.floor(Math.random() * waveData.types.length)];
+
+  // Bosses are drawn from the same flat pool as everything else, so a boss wave
+  // used to stack four or five "final bosses" on screen at once. Cap each boss
+  // at one alive and fall back to the wave's regular enemies. Capping bosses
+  // *collectively* would let a surviving SAP boss starve out Clippy's own wave.
+  if (ENEMY_TYPES[typeKey].boss && enemies.some(e => e.type === typeKey)) {
+    const minions = waveData.types.filter(t => !ENEMY_TYPES[t].boss);
+    if (minions.length === 0) return;
+    typeKey = minions[Math.floor(Math.random() * minions.length)];
+  }
+
   const type = ENEMY_TYPES[typeKey];
-  
+
   // Spawn from edges
   const side = Math.floor(Math.random() * 3); // 0=top, 1=left, 2=right
   let x, y;
   if (side === 0) { x = Math.random() * 700 + 50; y = -20; }
   else if (side === 1) { x = -20; y = Math.random() * 400 + 50; }
   else { x = 820; y = Math.random() * 400 + 50; }
-  
+
+  spawnEnemyAt(typeKey, x, y);
+}
+
+function spawnEnemyAt(typeKey, x, y) {
   enemies.push({
     type: typeKey,
     x, y,
-    hp: type.hp,
+    hp: ENEMY_TYPES[typeKey].hp,
     timer: 0,
     hit: 0,
-    targetX: player.x + (Math.random() - 0.5) * 200,
-    targetY: player.y + (Math.random() - 0.5) * 100
+    attackTimer: 0
   });
 }
 
 function spawnPowerup() {
   const types = Object.keys(POWERUP_TYPES);
   const typeKey = types[Math.floor(Math.random() * types.length)];
-  powerups.push({
-    type: typeKey,
-    x: Math.random() * 600 + 100,
-    y: Math.random() * 300 + 100,
-    timer: 0
-  });
+  // Keep it off the player's feet — spawning inside the pickup radius meant the
+  // powerup was consumed on the frame it appeared, with no chance to see it.
+  let x, y;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    x = Math.random() * 600 + 100;
+    y = Math.random() * 300 + 100;
+    if (Math.hypot(player.x - x, player.y - y) > 80) break;
+  }
+  powerups.push({ type: typeKey, x, y, timer: 0 });
+}
+
+// Both of these record maxLife so the renderer can fade correctly. Fading used
+// to divide by a hardcoded 30/40, so 80-frame wave banners were drawn at alpha
+// 2.0 (clamped, no fade-in) and 20-frame hit sparks popped in already faded.
+function addParticles(count, x, y, spread, life, color) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * spread,
+      vy: (Math.random() - 0.5) * spread,
+      life, maxLife: life, color
+    });
+  }
+}
+
+function addText(x, y, text, life, color) {
+  floatingTexts.push({ x, y, text, life, maxLife: life, color });
 }
 
 function swingCane() {
@@ -852,49 +1095,23 @@ function checkCaneHit() {
       enemy.y = Math.max(0, Math.min(600, enemy.y + Math.sin(angle) * 20));
       
       // Hit particles
-      for (let i = 0; i < 8; i++) {
-        particles.push({
-          x: enemy.x, y: enemy.y,
-          vx: (Math.random() - 0.5) * 6,
-          vy: (Math.random() - 0.5) * 6,
-          life: 20,
-          color: ENEMY_TYPES[enemy.type].color
-        });
-      }
-      
+      addParticles(8, enemy.x, enemy.y, 6, 20, ENEMY_TYPES[enemy.type].color);
+
       if (enemy.hp <= 0) {
         const type = ENEMY_TYPES[enemy.type];
         score += type.points * (activePowerup === 'rage' ? 2 : 1);
         comboCount++;
         comboTimer = 60;
-        
+
         if (comboCount > 2) {
-          floatingTexts.push({
-            x: enemy.x, y: enemy.y - 20,
-            text: comboCount + 'x COMBO!',
-            life: 40,
-            color: '#ffdc00'
-          });
+          addText(enemy.x, enemy.y - 20, comboCount + 'x COMBO!', 40, '#ffdc00');
         }
-        
-        floatingTexts.push({
-          x: enemy.x, y: enemy.y,
-          text: type.deathMsg,
-          life: 30,
-          color: type.color
-        });
-        
+
+        addText(enemy.x, enemy.y, type.deathMsg, 30, type.color);
+
         // Death explosion
-        for (let i = 0; i < 15; i++) {
-          particles.push({
-            x: enemy.x, y: enemy.y,
-            vx: (Math.random() - 0.5) * 10,
-            vy: (Math.random() - 0.5) * 10,
-            life: 30,
-            color: type.color
-          });
-        }
-        
+        addParticles(15, enemy.x, enemy.y, 10, 30, type.color);
+
         killLog[enemy.type] = (killLog[enemy.type] || 0) + 1;
       }
     }
@@ -903,7 +1120,9 @@ function checkCaneHit() {
 
 function update() {
   if (!gameRunning) return;
-  
+
+  gameTick++;
+
   // Player movement
   let dx = 0, dy = 0;
   if (keys['arrowleft'] || keys['a']) { dx = -1; player.facing = -1; }
@@ -926,6 +1145,9 @@ function update() {
     player.y += (dy/len) * spd;
     player.walkTimer++;
     if (player.walkTimer > 8) { player.walkFrame = (player.walkFrame + 1) % 4; player.walkTimer = 0; }
+  } else {
+    player.walkFrame = 0;
+    player.walkTimer = 0;
   }
   player.x = Math.max(20, Math.min(780, player.x));
   player.y = Math.max(50, Math.min(580, player.y));
@@ -947,10 +1169,34 @@ function update() {
     enemy.timer++;
     if (enemy.hit > 0) enemy.hit--;
     
+    if (enemy.speechTimer > 0) enemy.speechTimer--;
+
     const type = ENEMY_TYPES[enemy.type];
     let enemySpd = type.speed;
     if (activePowerup === 'freeze') enemySpd *= 0.1;
     if (activePowerup === 'shrink') enemySpd *= 0.7;
+
+    // Bosses that summon: Clippy interrupts to offer help, then makes the help
+    // your problem. LINTER stops the pitch entirely — it can't get a word in.
+    if (type.summons && activePowerup !== 'freeze') {
+      enemy.attackTimer++;
+      if (enemy.attackTimer >= type.summonInterval) {
+        enemy.attackTimer = 0;
+        enemy.speechLines = CLIPPY_SUGGESTIONS[Math.floor(Math.random() * CLIPPY_SUGGESTIONS.length)];
+        enemy.speechTimer = 110;
+        // Hard cap keeps a long boss fight from turning into a spawn storm.
+        if (enemies.length < 24) {
+          for (let i = 0; i < type.summonCount; i++) {
+            const a = Math.random() * Math.PI * 2;
+            spawnEnemyAt(
+              type.summons,
+              Math.max(10, Math.min(790, enemy.x + Math.cos(a) * 45)),
+              Math.max(10, Math.min(590, enemy.y + Math.sin(a) * 45))
+            );
+          }
+        }
+      }
+    }
 
     // Move toward player
     const edx = player.x - enemy.x;
@@ -961,20 +1207,27 @@ function update() {
       enemy.y += (edy/elen) * enemySpd;
     }
     
-    // Hit player — scale collision with enemy size
+    // Hit player — scale collision with enemy size.
+    // Guard on gameRunning too: three enemies landing on the same frame used to
+    // drop health to -2 and call gameOver() three times over.
     const hitDist = (type.w + type.h) / 4 + 10;
-    if (elen < hitDist && enemy.hit <= 0 && enemy.hp > 0) {
+    if (gameRunning && elen < hitDist && enemy.hit <= 0 && enemy.hp > 0) {
       health--;
-      enemy.hp = 0;
+      if (type.boss) {
+        // Bosses used to trade themselves for a single heart: walking into the
+        // 8-HP SAP boss deleted it outright, for no points and no kill-log
+        // entry. Now they shove you off and keep coming.
+        enemy.hit = 30;
+        enemy.x = Math.max(0, Math.min(800, enemy.x - (edx / elen) * 55));
+        enemy.y = Math.max(0, Math.min(600, enemy.y - (edy / elen) * 55));
+      } else {
+        enemy.hp = 0;
+      }
       screenShake = 10;
-      floatingTexts.push({
-        x: player.x, y: player.y - 30,
-        text: 'BUGS IN PROD!',
-        life: 40,
-        color: '#ff4136'
-      });
-      
+      addText(player.x, player.y - 30, 'BUGS IN PROD!', 40, '#ff4136');
+
       if (health <= 0) {
+        health = 0;
         gameOver();
       }
     }
@@ -998,31 +1251,13 @@ function update() {
         enemies.forEach(e => {
           score += ENEMY_TYPES[e.type].points;
           killLog[e.type] = (killLog[e.type] || 0) + 1;
-          for (let i = 0; i < 10; i++) {
-            particles.push({
-              x: e.x, y: e.y,
-              vx: (Math.random() - 0.5) * 8,
-              vy: (Math.random() - 0.5) * 8,
-              life: 25,
-              color: '#ffdc00'
-            });
-          }
+          addParticles(10, e.x, e.y, 8, 25, '#ffdc00');
         });
         enemies = [];
         screenShake = 15;
-        floatingTexts.push({
-          x: 400, y: 300,
-          text: 'REJECTED AT CODE REVIEW!',
-          life: 50,
-          color: '#ffdc00'
-        });
+        addText(400, 300, 'REJECTED AT CODE REVIEW!', 50, '#ffdc00');
       } else {
-        floatingTexts.push({
-          x: p.x, y: p.y,
-          text: type.desc,
-          life: 40,
-          color: type.color
-        });
+        addText(p.x, p.y, type.desc, 40, type.color);
       }
       return false;
     }
@@ -1068,12 +1303,7 @@ function update() {
   if (waveTimer >= waveData.duration && wave < WAVES.length) {
     wave++;
     waveTimer = 0;
-    floatingTexts.push({
-      x: 400, y: 200,
-      text: 'WAVE ' + wave + ': ' + WAVES[wave - 1].name,
-      life: 80,
-      color: '#00ff41'
-    });
+    addText(400, 200, 'WAVE ' + wave + ': ' + WAVES[wave - 1].name, 80, '#00ff41');
   }
   
   // Screen shake decay
@@ -1157,15 +1387,15 @@ function draw() {
   
   // Particles
   particles.forEach(p => {
-    ctx.globalAlpha = p.life / 30;
+    ctx.globalAlpha = p.life / p.maxLife;
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
   });
   ctx.globalAlpha = 1;
-  
+
   // Floating texts
   floatingTexts.forEach(t => {
-    ctx.globalAlpha = t.life / 40;
+    ctx.globalAlpha = t.life / t.maxLife;
     ctx.fillStyle = t.color;
     ctx.font = (t.text.includes('WAVE') ? '14' : '9') + 'px "Press Start 2P"';
     ctx.textAlign = 'center';
@@ -1179,10 +1409,34 @@ function draw() {
   ctx.restore();
 }
 
-function gameLoop() {
-  update();
-  draw();
+// Fixed timestep. All the tuning below is written in 60Hz frames, so a 120Hz
+// or 144Hz monitor used to run the whole game at double or triple speed.
+const FRAME_MS = 1000 / 60;
+const MAX_CATCHUP_STEPS = 5;
+let lastFrameTime = null;
+let frameAccumulator = 0;
+
+function gameLoop(now) {
   requestAnimationFrame(gameLoop);
+
+  // null, not 0 — a legitimate timestamp of 0 would otherwise read as "unset"
+  // and silently swallow the frame.
+  if (lastFrameTime === null) lastFrameTime = now;
+  // Clamp so a backgrounded tab doesn't come back and simulate 30s at once.
+  const delta = Math.min(now - lastFrameTime, 250);
+  lastFrameTime = now;
+  frameAccumulator += delta;
+
+  let steps = 0;
+  while (frameAccumulator >= FRAME_MS && steps < MAX_CATCHUP_STEPS) {
+    update();
+    frameAccumulator -= FRAME_MS;
+    steps++;
+  }
+  // Too far behind to catch up — drop the backlog instead of spiralling.
+  if (steps === MAX_CATCHUP_STEPS) frameAccumulator = 0;
+
+  draw();
 }
 
 function startGame() {
@@ -1202,10 +1456,20 @@ function startGame() {
   killLog = {};
   player.x = 400;
   player.y = 500;
+  player.facing = 1;
   activePowerup = null;
   powerupTimer = 0;
   comboCount = 0;
   comboTimer = 0;
+  // These used to survive a restart: dying mid-swing left the cane stuck out,
+  // and a death's screen shake carried over into the first second of the run.
+  screenShake = 0;
+  caneSwinging = false;
+  caneAngle = 0;
+  caneTimer = 0;
+  gameTick = 0;
+  lastFrameTime = null;
+  frameAccumulator = 0;
 }
 
 function gameOver() {
@@ -1228,7 +1492,7 @@ function gameOver() {
 }
 
 // Start game loop
-gameLoop();
+requestAnimationFrame(gameLoop);
 </script>
 
 </body>

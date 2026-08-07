@@ -38,7 +38,10 @@ Smack bloated JavaScript bundles. Whack if/else centipedes. Obliterate node_modu
 | **Uncompressed 4K Texture** | 200MB of rainbow pixels that could have been a JPEG. | ⚠️⚠️⚠️⚠️ |
 | **Dan's Fix** | He removed the square brackets and called it a day. | ⚠️⚠️⚠️ |
 | **Spaghetti Code** | `goto` considered harmful since 1968. Still here. | ⚠️⚠️ |
-| **SAP 1000-line IF/ELSE** | The final boss. A thousand lines of conditional logic that should have been a lookup table. | 💀 |
+| **SAP 1000-line IF/ELSE** | A boss. A thousand lines of conditional logic that should have been a lookup table. | 💀 |
+| **Clippy** | A boss. It looks like you're writing a for loop. It would like to help. It will not stop helping — every few seconds it interrupts with a suggestion and summons two of Dan's fixes to assist you. Freeze it with the LINTER before it gets a word in. | 💀 |
+
+Bosses don't go down easy: walking into one costs you a heart and shoves it back, but it keeps coming. Only the cane actually kills. Just one boss is on the field at a time.
 
 ## Power-Ups
 
@@ -55,14 +58,35 @@ Smack bloated JavaScript bundles. Whack if/else centipedes. Obliterate node_modu
 2. **Framework Hell** — node_modules enter the chat
 3. **Legacy Code** — if/else chains and memory leaks
 4. **AAA Bloatware** — uncompressed textures join the party
-5. **SAP Nightmare** — the boss appears
-6. **Production Deploy** — everything, everywhere, all at once
+5. **SAP Nightmare** — the first boss appears
+6. **Office Assistant** — Clippy would like to help
+7. **Production Deploy** — everything, everywhere, all at once
 
 ## Tech Stack
 
 One HTML file. No build step. No npm install. No webpack. No transpilation. No framework. Just HTML, CSS, and vanilla JavaScript, the way God and Brendan Eich intended.
 
 The irony of building a game about code bloat as a single file with zero dependencies is not lost on us.
+
+## Tests
+
+Also no dependencies. Node 18+:
+
+```bash
+node test_game.mjs    # behavioural — loads the real game code from index.html
+node test_fixes.mjs   # static assertions against the source
+```
+
+`test_game.mjs` runs the actual `<script>` block from `index.html` against a
+minimal fake DOM (`test_harness.mjs`), so the tests exercise the shipped code
+rather than a copy of it.
+
+There's also `test_fixes.html` for running the older checks in a browser. It
+fetches `index.html`, so serve it rather than opening it from `file://`:
+
+```bash
+npx http-server -p 8099   # then open http://127.0.0.1:8099/test_fixes.html
+```
 
 ## Mimic Metrics
 
