@@ -29,8 +29,13 @@ function assert(condition, name) {
 </script>
 <!-- Load the actual game to get its globals -->
 <script>
-// We need to extract the script from index.html and test against it.
-// Instead, let's replicate the critical logic and test the fixes directly.
+// Serve this page over HTTP (e.g. `npx http-server`) — some checks fetch
+// index.html, which a file:// origin blocks.
+//
+// NOTE: the tables below are a COPY of the ones in index.html, used only by the
+// pure-logic simulations. They have drifted before. The authoritative
+// behavioural suite is test_game.mjs, which loads the real game code — prefer
+// adding tests there. Keep this copy in sync when ENEMY_TYPES or WAVES change.
 
 // ---- ENEMY_TYPES (copied) ----
 const ENEMY_TYPES = {
@@ -41,7 +46,8 @@ const ENEMY_TYPES = {
   texture4k: { name: 'Uncompressed 4K Texture', color: '#fc8181', accentColor: '#9b2c2c', w: 45, h: 45, hp: 4, speed: 0.4, points: 400, deathMsg: 'COMPRESSED!', shape: 'block' },
   nodeModules: { name: 'node_modules', color: '#68d391', accentColor: '#276749', w: 35, h: 35, hp: 3, speed: 0.6, points: 300, deathMsg: 'npm prune!', shape: 'growing' },
   ifElse: { name: 'If/Else Centipede', color: '#ff6b6b', accentColor: '#c92a2a', w: 50, h: 14, hp: 2, speed: 1.5, points: 200, deathMsg: 'REFACTORED!', shape: 'centipede' },
-  spaghetti: { name: 'Spaghetti Code', color: '#ffd43b', accentColor: '#e67700', w: 24, h: 24, hp: 2, speed: 1.8, points: 200, deathMsg: 'UNTANGLED!', shape: 'noodle' }
+  spaghetti: { name: 'Spaghetti Code', color: '#ffd43b', accentColor: '#e67700', w: 24, h: 24, hp: 2, speed: 1.8, points: 200, deathMsg: 'UNTANGLED!', shape: 'noodle' },
+  clippy: { name: 'Clippy', color: '#dfe4ea', accentColor: '#4a90d9', w: 55, h: 60, hp: 12, speed: 0.45, points: 2000, deathMsg: 'SUGGESTION DECLINED!', shape: 'clippy', boss: true, summons: 'dansFix', summonCount: 2, summonInterval: 210 }
 };
 
 const WAVES = [
@@ -50,7 +56,8 @@ const WAVES = [
   { name: 'LEGACY CODE', types: ['ifElse', 'memLeak', 'spaghetti', 'dansFix'], spawnRate: 60, duration: 800 },
   { name: 'AAA BLOATWARE', types: ['texture4k', 'nodeModules', 'jsBlob', 'memLeak'], spawnRate: 50, duration: 800 },
   { name: 'SAP NIGHTMARE', types: ['ifElse', 'sapIfElse', 'dansFix', 'spaghetti', 'memLeak'], spawnRate: 45, duration: 900 },
-  { name: 'PRODUCTION DEPLOY', types: ['jsBlob', 'ifElse', 'nodeModules', 'memLeak', 'texture4k', 'dansFix', 'spaghetti'], spawnRate: 35, duration: 1000 }
+  { name: 'OFFICE ASSISTANT', types: ['clippy', 'dansFix', 'jsBlob', 'spaghetti', 'memLeak'], spawnRate: 50, duration: 900 },
+  { name: 'PRODUCTION DEPLOY', types: ['jsBlob', 'ifElse', 'nodeModules', 'memLeak', 'texture4k', 'dansFix', 'spaghetti', 'sapIfElse', 'clippy'], spawnRate: 35, duration: 1000 }
 ];
 
 results.textContent = '=== Running Fix Tests ===\n\n';
@@ -177,8 +184,10 @@ results.textContent += '\n--- #11: CSS universal selector ---\n';
     // ---- TEST #5: Wave counter caps at WAVES.length ----
     results.textContent += '\n--- #5: Wave counter capped ---\n';
     {
-      // Simulate wave progression
-      let wave = 6;
+      // Simulate wave progression — derived from WAVES so adding a wave
+      // (like OFFICE ASSISTANT) doesn't leave a stale hardcoded 6 behind.
+      const last = WAVES.length;
+      let wave = last;
       let waveTimer = 0;
       const waveData = WAVES[Math.min(wave - 1, WAVES.length - 1)];
       waveTimer = waveData.duration; // trigger progression check
@@ -187,14 +196,14 @@ results.textContent += '\n--- #11: CSS universal selector ---\n';
       if (waveTimer >= waveData.duration && wave < WAVES.length) {
         wave++;
       }
-      assert(wave === 6, 'Wave does NOT increment past WAVES.length (6)');
+      assert(wave === last, `Wave does NOT increment past WAVES.length (${last})`);
 
-      // But wave 5 should still progress to 6
-      let wave2 = 5;
+      // But the penultimate wave should still progress
+      let wave2 = last - 1;
       if (waveTimer >= waveData.duration && wave2 < WAVES.length) {
         wave2++;
       }
-      assert(wave2 === 6, 'Wave 5 still progresses to 6');
+      assert(wave2 === last, `Wave ${last - 1} still progresses to ${last}`);
     }
 
     // ---- TEST #1: globalAlpha leak removed ----
