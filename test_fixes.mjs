@@ -281,6 +281,39 @@ console.log('\n#20: Dead code removed / put to use');
   assert(html.includes('player.walkFrame]'), 'walkFrame is actually used when drawing legs');
 }
 
+// ---- TEST #21: sprite mirroring ----
+console.log('\n#21: Player sprite mirrors as a whole');
+{
+  const fn = html.substring(html.indexOf('function drawPixelChar'), html.indexOf('function drawEnemy'));
+  assert(fn.includes('ctx.scale(facing, 1)'), 'drawPixelChar mirrors via ctx.scale');
+  // Negating an x offset moves a rect's anchor without mirroring it, which is
+  // what detached the hair from the head when facing left.
+  assert(!/fillRect\(\s*-?\d+(\.\d+)?\s*\*\s*facing/.test(fn),
+    'No fillRect anchored on a negated facing offset');
+  assert(!stripComments(fn).includes('* facing'),
+    'No per-part facing multipliers left in the sprite');
+}
+
+// ---- TEST #22: cane arc ----
+console.log('\n#22: Cane hitbox is an arc around the player');
+{
+  assert(html.includes('const CANE_RANGE ='), 'Cane range is a named constant');
+  assert(html.includes('const CANE_CLOSE ='), 'Close-range bubble is a named constant');
+  const fn = html.substring(html.indexOf('function checkCaneHit'), html.indexOf('function update()'));
+  assert(!fn.includes('const caneX'),
+    'Hit test no longer uses a circle offset ahead of the player (left a dead zone on his own body)');
+  assert(fn.includes('enemy.x - player.x') && fn.includes('player.y'),
+    'Hit test measures from the player');
+  assert(fn.includes('dx * player.facing'), 'Hit test uses a forward half-disc');
+  assert(fn.includes('CANE_CLOSE'), 'Close range ignores facing');
+  assert(html.includes('function faceNearestTarget'), 'Swinging can turn you toward a target behind');
+  assert(html.includes('CANE_ACTIVE_FROM') && html.includes('CANE_ACTIVE_TO'),
+    'Swing is live across a frame window, not a single frame');
+  assert(!html.includes('if (caneTimer === 6) checkCaneHit()'), 'Single-frame hit check removed');
+  const drawFn = html.substring(html.indexOf('function draw()'));
+  assert(drawFn.includes('Swing arc'), 'The arc is drawn so the hitbox is visible');
+}
+
 // ---- SUMMARY ----
 console.log(`\n=== RESULTS: ${passed} passed, ${failed} failed ===`);
 if (failed === 0) console.log('ALL TESTS PASSED!');

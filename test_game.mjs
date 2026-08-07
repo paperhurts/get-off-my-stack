@@ -157,6 +157,78 @@ console.log('\nBoss kill crediting');
   assert(g.floatingTexts.some(t => t.text === g.ENEMY_TYPES.clippy.deathMsg), 'clippy death message shown');
 }
 
+// ---- Cane arc reaches what it looks like it reaches ----
+console.log('\nCane hitbox');
+{
+  // Swing, then resolve the cane directly so collision doesn't confuse things.
+  const probe = (dx, dy, setup) => {
+    const g = fresh();
+    g.health = 999;
+    g.player.x = 400; g.player.y = 300; g.player.facing = 1;
+    g.enemies = [];
+    if (setup) setup(g);
+    g.spawnEnemyAt('jsBlob', 400 + dx, 300 + dy);
+    const target = g.enemies[g.enemies.length - 1];
+    target.hp = 999;
+    g.swingCane();
+    g.checkCaneHit();
+    return { hit: target.hp < 999, facing: g.player.facing };
+  };
+
+  assert(probe(0, 0).hit, 'an enemy standing on top of the player is hit');
+  assert(probe(12, 0).hit, 'an enemy in the old dead zone (12px ahead) is hit');
+  assert(probe(-45, 0).hit, 'an enemy behind the player is hit');
+  assert(probe(-45, 0).facing === -1, 'swinging turns you toward a target behind you');
+  assert(probe(45, 0).facing === 1, 'a target in front does not flip your facing');
+  assert(probe(0, -50).hit, 'an enemy directly above is hit');
+  assert(!probe(200, 0).hit, 'an enemy well out of reach is still a miss');
+
+  // The nearest target decides the flip, not just any target.
+  const both = probe(-40, 0, g => g.spawnEnemyAt('jsBlob', 400 + 20, 300));
+  assert(both.facing === 1, 'a closer target in front keeps you facing forward');
+
+  // The new arc must strictly contain the old circle: nobody loses a poke.
+  const oldHit = (dx, dy) => Math.hypot(dx - 40, dy) < 30;
+  let lost = 0;
+  for (let dx = -100; dx <= 100; dx += 10) {
+    for (let dy = -100; dy <= 100; dy += 10) {
+      if (oldHit(dx, dy) && !probe(dx, dy).hit) lost++;
+    }
+  }
+  assert(lost === 0, `new arc covers everything the old hitbox did (lost ${lost} cells)`);
+}
+
+// ---- Swing stays live for more than one frame ----
+console.log('\nSwing window');
+{
+  let slipped = 0;
+  for (let offset = 0; offset < 14; offset++) {
+    const g = fresh();
+    g.health = 999;
+    g.player.x = 400; g.player.y = 300; g.player.facing = 1;
+    g.enemies = [];
+    g.spawnEnemyAt('dansFix', 500, 300);   // speed 3, closing fast
+    g.enemies[0].hp = 999;
+    tick(g, offset);
+    g.swingCane();
+    tick(g, 13);
+    if (g.enemies[0] && g.enemies[0].hp === 999) slipped++;
+  }
+  assert(slipped <= 3, `a fast enemy rarely crosses the arc unhit (${slipped}/14 timings)`);
+}
+
+// ---- Combat is actually winnable ----
+console.log('\nCombat throughput');
+{
+  const g = loadGame();
+  g.startGame();
+  g.health = 999;
+  g.wave = 1;
+  for (let i = 0; i < 1800; i++) { g.swingCane(); g.update(); }
+  const kills = Object.values(g.killLog).reduce((a, b) => a + b, 0);
+  assert(kills >= 12, `60s of wave 1 mashing SMACK lands a decent number of kills (${kills})`);
+}
+
 // ---- Health never goes negative, gameOver fires once ----
 console.log('\nDeath handling');
 {
