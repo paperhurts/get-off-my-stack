@@ -27,10 +27,13 @@ user-select: none;
 
 #game-wrapper {
 position: relative;
-width: 100vw;
-max-width: 800px;
+/* Width is the only free dimension; height comes from aspect-ratio. Capping
+   height separately (max-height) clamped it without shrinking the width, so
+   the canvas stretched: 1.43:1 on a 1280x800 desktop, 3.7:1 on a phone held
+   sideways. Fold the height budget into the width instead. */
+--max-h: 70dvh;
+width: min(100vw, 800px, calc(var(--max-h) * 4 / 3));
 aspect-ratio: 4 / 3;
-max-height: 70dvh;
 }
 
 canvas {
@@ -270,7 +273,7 @@ box-shadow: 0 0 25px rgba(255, 65, 54, 0.6);
 
 @media (pointer: coarse), (max-width: 900px) {
 #touch-controls { display: block; }
-#game-wrapper { max-height: 55dvh; }
+#game-wrapper { --max-h: 55dvh; }
 }
 </style>
 
@@ -591,6 +594,8 @@ function updateTextureCache(tick) {
   }
 }
 
+const SHRINK_SCALE = 0.6;
+
 const POWERUP_TYPES = {
   assemblyManual: { name: 'ASM MANUAL', color: '#ff4136', duration: 300, effect: 'rage', icon: 'A', desc: 'x86 RAGE MODE!' },
   linter: { name: 'LINTER', color: '#01ff70', duration: 200, effect: 'freeze', icon: 'L', desc: 'LINT ALL THE THINGS!' },
@@ -702,7 +707,7 @@ function drawEnemy(enemy) {
   }
   
   if (activePowerup === 'shrink') {
-    ctx.scale(0.6, 0.6);
+    ctx.scale(SHRINK_SCALE, SHRINK_SCALE);
   }
   
   const w = type.w;
@@ -1256,7 +1261,10 @@ function update() {
     // Hit player — scale collision with enemy size.
     // Guard on gameRunning too: three enemies landing on the same frame used to
     // drop health to -2 and call gameOver() three times over.
-    const hitDist = (type.w + type.h) / 4 + 10;
+    // gcc -O3 draws enemies at 0.6x; shrink the body they hit you with too, or
+    // the powerup only makes them harder to see coming.
+    const sizeScale = activePowerup === 'shrink' ? SHRINK_SCALE : 1;
+    const hitDist = (type.w + type.h) / 4 * sizeScale + 10;
     if (gameRunning && elen < hitDist && enemy.hit <= 0 && enemy.hp > 0) {
       health--;
       if (type.boss) {
@@ -1264,8 +1272,13 @@ function update() {
         // 8-HP SAP boss deleted it outright, for no points and no kill-log
         // entry. Now they shove you off and keep coming.
         enemy.hit = 30;
-        enemy.x = Math.max(0, Math.min(800, enemy.x - (edx / elen) * 55));
-        enemy.y = Math.max(0, Math.min(600, enemy.y - (edy / elen) * 55));
+        // Dead-centre overlap has no direction; shove straight up rather than
+        // divide by zero. A NaN position made the boss invisible and unkillable,
+        // and since only one of each boss may live, it blocked respawns forever.
+        const ux = elen > 0 ? edx / elen : 0;
+        const uy = elen > 0 ? edy / elen : 1;
+        enemy.x = Math.max(0, Math.min(800, enemy.x - ux * 55));
+        enemy.y = Math.max(0, Math.min(600, enemy.y - uy * 55));
       } else {
         enemy.hp = 0;
       }
@@ -1289,9 +1302,7 @@ function update() {
     const dy = player.y - p.y;
     if (Math.sqrt(dx*dx + dy*dy) < 30) {
       const type = POWERUP_TYPES[p.type];
-      activePowerup = type.effect;
-      powerupTimer = type.duration;
-      
+
       if (type.effect === 'nuke') {
         // Kill all enemies on screen
         enemies.forEach(e => {
@@ -1303,6 +1314,10 @@ function update() {
         screenShake = 15;
         addText(400, 300, 'REJECTED AT CODE REVIEW!', 50, '#ffdc00');
       } else {
+        // Only timed effects occupy the slot. The nuke used to as well, for one
+        // frame, which silently cancelled whatever RAGE/LINTER you were running.
+        activePowerup = type.effect;
+        powerupTimer = type.duration;
         addText(p.x, p.y, type.desc, 40, type.color);
       }
       return false;
@@ -1551,7 +1566,7 @@ function gameOver() {
     addLine(ENEMY_TYPES[key].name + ': ' + killLog[key] + ' terminated');
   });
   logEl.appendChild(document.createElement('br'));
-  logEl.appendChild(document.createTextNode('Waves survived: ' + wave));
+  logEl.appendChild(document.createTextNode('Reached wave ' + wave + ': ' + WAVES[wave - 1].name));
 }
 
 // Start game loop
