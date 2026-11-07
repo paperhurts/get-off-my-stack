@@ -324,6 +324,51 @@ console.log('\nInput');
   assert(g.keys['a'] === false, 'blurring the window releases held keys');
 }
 
+// ---- gcc -O3 shrinks the hitbox, not just the sprite ----
+console.log('\nShrink powerup');
+{
+  // A JS blob 22px away: inside its normal 25px reach, outside its shrunk one.
+  const place = (g) => {
+    g.enemies = [];
+    g.spawnEnemyAt('jsBlob', g.player.x + 22, g.player.y);
+    g.ENEMY_TYPES.jsBlob.speed = 0; // hold it still for the check
+  };
+  const g = fresh();
+  const realSpeed = g.ENEMY_TYPES.jsBlob.speed;
+  place(g);
+  tick(g);
+  assert(g.health === 4, 'unshrunk blob at 22px still hits');
+  const g2 = fresh();
+  place(g2);
+  g2.activePowerup = 'shrink'; g2.powerupTimer = 100;
+  tick(g2);
+  assert(g2.health === 5, 'shrunk blob at 22px no longer hits');
+  g.ENEMY_TYPES.jsBlob.speed = g2.ENEMY_TYPES.jsBlob.speed = realSpeed;
+}
+
+// ---- CODE REVIEW leaves an active powerup alone ----
+console.log('\nCode review vs active powerup');
+{
+  const g = fresh();
+  g.activePowerup = 'rage'; g.powerupTimer = 200;
+  g.powerups = [{ type: 'codeReview', x: g.player.x, y: g.player.y, timer: 0 }];
+  g.spawnEnemyAt('jsBlob', 100, 100);
+  tick(g);
+  assert(g.enemies.length === 0, 'code review still clears the field');
+  assert(g.activePowerup === 'rage' && g.powerupTimer > 190, 'rage survives picking up code review');
+}
+
+// ---- Boss shove with zero distance ----
+console.log('\nBoss overlap');
+{
+  const g = fresh();
+  g.health = 99;
+  g.spawnEnemyAt('sapIfElse', g.player.x, g.player.y);
+  tick(g);
+  const b = g.enemies.find(e => e.type === 'sapIfElse');
+  assert(b && Number.isFinite(b.x) && Number.isFinite(b.y), 'dead-centre boss contact leaves a finite position');
+}
+
 console.log(`\n=== RESULTS: ${passed} passed, ${failed} failed ===`);
 if (failed === 0) console.log('ALL BEHAVIOURAL TESTS PASSED!');
 else process.exit(1);

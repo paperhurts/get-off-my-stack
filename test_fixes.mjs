@@ -71,7 +71,7 @@ console.log('\n#3: Collision radius scales with enemy size');
   assert(blobHit === 25, 'JS Blob hitDist = 25 (same as old)');
   const bossHit = (60 + 50) / 4 + 10;
   assert(bossHit === 37.5, 'SAP Boss hitDist = 37.5 (larger than old 25)');
-  assert(html.includes('const hitDist = (type.w + type.h) / 4 + 10;'), 'Source uses scaled hitDist formula');
+  assert(/const hitDist = \(type\.w \+ type\.h\) \/ 4( \* sizeScale)? \+ 10;/.test(html), 'Source uses scaled hitDist formula');
 }
 
 // ---- TEST #6: Cached DOM elements ----
